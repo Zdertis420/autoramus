@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_unknown_field",
+    "message": "незнакомое поле «inputs»",
+    "path": "/functions/0/inputs",
+    "line": 7,
+    "column": 7
+  }
+]

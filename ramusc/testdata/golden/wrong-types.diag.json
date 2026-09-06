@@ -1,0 +1,34 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_type",
+    "message": "ожидается массив, получено строка",
+    "path": "/flows",
+    "line": 3,
+    "column": 3
+  },
+  {
+    "severity": "error",
+    "code": "schema_min_length",
+    "message": "значение не может быть пустым",
+    "path": "/functions/0/name",
+    "line": 6,
+    "column": 7
+  },
+  {
+    "severity": "error",
+    "code": "schema_type",
+    "message": "ожидается строка, получено число",
+    "path": "/functions/0/in/1",
+    "line": 7,
+    "column": 23
+  },
+  {
+    "severity": "error",
+    "code": "schema_type",
+    "message": "ожидается строка, получено логическое значение",
+    "path": "/functions/0/note",
+    "line": 8,
+    "column": 7
+  }
+]

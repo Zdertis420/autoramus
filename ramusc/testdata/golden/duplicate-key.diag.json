@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_key",
+    "message": "ключ «in» уже объявлен в строке 6",
+    "path": "",
+    "line": 8,
+    "column": 5
+  }
+]

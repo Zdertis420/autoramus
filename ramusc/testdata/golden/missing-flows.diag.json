@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_required",
+    "message": "не хватает обязательных полей: «flows»",
+    "path": "",
+    "line": 1,
+    "column": 1
+  }
+]

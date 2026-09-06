@@ -1,0 +1,7 @@
+model: Изготовление юбки
+flows: &spisok [Ткань, Юбка]
+
+functions:
+  - name: Изготовление юбки
+    in: *spisok
+    out: [Юбка]

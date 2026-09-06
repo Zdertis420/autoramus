@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "error",
+    "code": "yaml_anchor",
+    "message": "якоря и алиасы YAML запрещены: выигрыша нет, а ошибиться легко",
+    "path": "",
+    "line": 2,
+    "column": 8
+  },
+  {
+    "severity": "error",
+    "code": "yaml_anchor",
+    "message": "якоря и алиасы YAML запрещены: выигрыша нет, а ошибиться легко",
+    "path": "",
+    "line": 6,
+    "column": 9
+  }
+]
