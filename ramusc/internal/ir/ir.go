@@ -233,11 +233,15 @@ type FunctionLayout struct {
 
 // ArrowLayout — ломаная одного сегмента стрелки на одной диаграмме.
 type ArrowLayout struct {
-	Flow   Ref
-	On     Ref // чья диаграмма: работа или, для контекстной, имя модели
-	From   Ref
-	To     Ref
-	Points []Point
+	Flow Ref
+	On   Ref // чья диаграмма: работа или, для контекстной, имя модели
+	// Context — сегмент лежит на контекстной диаграмме A-0. Корневая работа
+	// и модель зовутся одинаково, и без этой пометки диаграмма A-0
+	// неотличима от декомпозиции корневой работы.
+	Context bool
+	From    Ref
+	To      Ref
+	Points  []Point
 
 	Path string
 	Pos  diag.Pos
@@ -257,6 +261,10 @@ func (m *Model) Function(name string) *Function { return m.byFunction[name] }
 
 // Classifier возвращает классификатор по нормализованному имени.
 func (m *Model) Classifier(name string) *Classifier { return m.byClassifier[name] }
+
+// Index перестраивает карты имён. Build зовёт её сам; декомпилятору,
+// который собирает Model руками, приходится звать её самому.
+func (m *Model) Index() { m.index() }
 
 // index собирает карты имён. Вызывается в конце Build.
 func (m *Model) index() {

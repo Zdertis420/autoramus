@@ -51,6 +51,10 @@ func run(args []string, stdout, stderr io.Writer) (code int) {
 		return exitOK
 	case "validate":
 		return command(args[1:], stdout, stderr, false)
+	case "dump":
+		return dump(args[1:], stdout, stderr)
+	case "decompile":
+		return decompileCommand(args[1:], stdout, stderr)
 	default:
 		return command(args, stdout, stderr, true)
 	}
@@ -168,6 +172,8 @@ func usage(w io.Writer) {
   ramusc <файл> [-o вывод.rsf]   компиляция (генератор ещё не подключён)
   ramusc validate <файл>         проверка, человекочитаемый вывод
   ramusc validate <файл> --json  проверка, машинный вывод для GUI
+  ramusc dump <файл.rsf>         показать модель из готового файла Ramus
+  ramusc decompile <файл.rsf>    напечатать её на входном языке (YAML; --json)
   ramusc version                 версия
   ramusc help                    эта справка
 

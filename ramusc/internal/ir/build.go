@@ -174,12 +174,13 @@ func buildLayout(c cursor) *Layout {
 	}
 	for _, it := range c.list("arrows") {
 		a := &ArrowLayout{
-			Flow: it.refField("flow"),
-			On:   it.refField("on"),
-			From: it.refField("from"),
-			To:   it.refField("to"),
-			Path: it.path,
-			Pos:  it.pos(),
+			Flow:    it.refField("flow"),
+			On:      it.refField("on"),
+			Context: it.boolField("context"),
+			From:    it.refField("from"),
+			To:      it.refField("to"),
+			Path:    it.path,
+			Pos:     it.pos(),
 		}
 		for _, p := range it.list("points") {
 			coords := p.items()
@@ -300,6 +301,14 @@ func (c cursor) numField(key string) Num {
 		return Num{}
 	}
 	return f.num()
+}
+
+func (c cursor) boolField(key string) bool {
+	f, ok := c.field(key)
+	if !ok || f.node == nil || f.node.Kind != syntax.Bool {
+		return false
+	}
+	return f.node.Bool
 }
 
 func (c cursor) value() any {

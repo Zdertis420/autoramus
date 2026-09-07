@@ -33,9 +33,10 @@ check:
 	$(MAKE) vet
 	$(MAKE) test
 
-# Переписать эталоны диагностики после осознанного изменения сообщений.
+# Переписать эталоны после осознанного изменения сообщений или вывода dump.
 golden:
 	go test ./internal/validate -update
+	go test ./cmd/ramusc -update
 
 cross:
 	@for platform in $(PLATFORMS); do \
