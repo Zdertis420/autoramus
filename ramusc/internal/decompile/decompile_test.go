@@ -109,8 +109,9 @@ func TestICOMSurvives(t *testing.T) {
 	}
 }
 
-// TestLayout — координаты всех четырёх блоков и только выразимые ломаные,
-// половина которых лежит на контекстной диаграмме.
+// TestLayout — геометрия переносится целиком: координаты всех блоков и все
+// 45 сегментов, сгруппированные по стрелкам. Раньше 27 из них записать было
+// нечем, теперь узлы ветвления выражаются в языке.
 func TestLayout(t *testing.T) {
 	m := decompiled(t)
 	if m.Layout == nil {
@@ -119,29 +120,89 @@ func TestLayout(t *testing.T) {
 	if len(m.Layout.Functions) != 4 {
 		t.Errorf("блоков в раскладке %d, ожидалось 4", len(m.Layout.Functions))
 	}
-	if len(m.Layout.Arrows) != 18 {
-		t.Errorf("ломаных %d, ожидалось 18", len(m.Layout.Arrows))
+
+	// Стрелок 11: у трёх потоков из четырнадцати нет ни одного сегмента.
+	if len(m.Layout.Arrows) != 11 {
+		t.Errorf("стрелок %d, ожидалось 11", len(m.Layout.Arrows))
 	}
 
-	var context int
+	var segments, context, dangling int
+	kinds := map[string]int{}
 	for _, a := range m.Layout.Arrows {
-		if a.Context {
-			context++
+		for _, s := range a.Segments {
+			segments++
+			if s.Context {
+				context++
+			}
+			if s.On.Name == "" {
+				t.Errorf("сегмент потока «%s» не называет диаграмму", a.Flow.Name)
+			}
+			if len(s.Points) < 2 {
+				t.Errorf("сегмент потока «%s» короче двух точек", a.Flow.Name)
+			}
+			for _, e := range []*ir.Endpoint{s.From, s.To} {
+				if e == nil {
+					dangling++
+					continue
+				}
+				kinds[e.Kind()]++
+			}
 		}
-		if len(a.Points) < 2 {
-			t.Errorf("ломаная %s короче двух точек", a.Flow.Name)
-		}
-		if a.On.Name == "" {
-			t.Errorf("ломаная %s не называет диаграмму", a.Flow.Name)
-		}
+	}
+
+	if segments != 45 {
+		t.Errorf("сегментов %d, ожидалось 45", segments)
 	}
 	if context != 9 {
 		t.Errorf("сегментов контекстной диаграммы %d, ожидалось 9", context)
+	}
+	// Ровно та же раскладка концов, что видна в самом файле.
+	want := map[string]int{ir.EndpointFunction: 26, ir.EndpointBorder: 35, ir.EndpointNode: 12}
+	for kind, n := range want {
+		if kinds[kind] != n {
+			t.Errorf("концов вида %s: %d, ожидалось %d", kind, kinds[kind], n)
+		}
+	}
+	if dangling != 17 {
+		t.Errorf("висящих концов %d, ожидалось 17", dangling)
 	}
 
 	first := m.Layout.Functions[0]
 	if first.Function.Name != "Изготовление юбки" || first.X.Val != 288 || first.Width.Val != 186 {
 		t.Errorf("первый блок раскладки: %+v", first)
+	}
+}
+
+// TestBranchingNodes — механизм «Швея-закройшица» ветвится на три работы,
+// и это единственное, чем такое ветвление выражается: общий узел у сегментов.
+func TestBranchingNodes(t *testing.T) {
+	m := decompiled(t)
+
+	var arrow *ir.ArrowLayout
+	for _, a := range m.Layout.Arrows {
+		if a.Flow.Name == "Швея-закройшица" {
+			arrow = a
+		}
+	}
+	if arrow == nil {
+		t.Fatal("стрелка механизма не нашлась")
+	}
+
+	used := map[string]int{}
+	for _, s := range arrow.Segments {
+		for _, e := range []*ir.Endpoint{s.From, s.To} {
+			if e.Kind() == ir.EndpointNode {
+				used[e.Node.Name]++
+			}
+		}
+	}
+	if len(used) != 2 {
+		t.Fatalf("узлов %d, ожидалось 2: %v", len(used), used)
+	}
+	for name, n := range used {
+		if n < 2 {
+			t.Errorf("узел %s упомянут %d раз: он ничего не сшивает", name, n)
+		}
 	}
 }
 
@@ -168,20 +229,5 @@ func TestOrphanFlows(t *testing.T) {
 		if got[i] != want[i] {
 			t.Errorf("поток %d = %q, ожидался %q", i, got[i], want[i])
 		}
-	}
-}
-
-func TestSkippedIsReported(t *testing.T) {
-	f, err := rsf.Open(fixture)
-	if err != nil {
-		t.Fatal(err)
-	}
-	source, err := rsf.NewModel(f)
-	if err != nil {
-		t.Fatal(err)
-	}
-	skipped, total := decompile.Skipped(source)
-	if total != 45 || skipped != 27 {
-		t.Errorf("пропущено %d из %d, ожидалось 27 из 45", skipped, total)
 	}
 }

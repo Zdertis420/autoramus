@@ -75,20 +75,10 @@ func decompileCommand(args []string, stdout, stderr io.Writer) int {
 	return exitOK
 }
 
-// header честно говорит, что в переводе потерялось и что вызовет замечания
-// валидатора. Молча терять стрелки нельзя, а выразить ветвящиеся нынешним
-// layout.arrows нечем; про осиротевшие потоки сказано затем, чтобы ожидаемые
-// unused_flow не приняли за поломку и не «починили» фильтрацией flows.
+// header говорит о том, что вызовет замечания валидатора: ожидаемые
+// unused_flow не должны приниматься за поломку и «чиниться» фильтрацией flows.
 func header(filename string, source *rsf.Model) []string {
 	lines := []string{fmt.Sprintf("Декомпилировано из %s.", filename)}
-
-	skipped, total := decompile.Skipped(source)
-	if skipped > 0 {
-		lines = append(lines,
-			fmt.Sprintf("Сегментов стрелок в файле %d, в layout записано %d.", total, total-skipped),
-			"Остальные упираются в узлы ветвления или висят неприсоединёнными —",
-			"нынешним layout.arrows их не выразить.")
-	}
 
 	if orphans := decompile.OrphanFlows(source); len(orphans) > 0 {
 		lines = append(lines,

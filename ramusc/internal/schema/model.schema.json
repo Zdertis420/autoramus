@@ -225,12 +225,38 @@
         "height": { "type": "number" }
       }
     },
-    "arrowLayout": {
+    "blockSide": {
+      "description": "Сторона блока, к которой прицеплен конец сегмента. В отличие от связи здесь возможен и выход: речь о геометрии, а не о том, кто кого потребляет.",
+      "enum": ["in", "control", "mechanism", "out"]
+    },
+    "sheetSide": {
+      "description": "Край листа. Названия геометрические: у края нет роли ICOM, он просто сторона диаграммы.",
+      "enum": ["left", "right", "top", "bottom"]
+    },
+    "endpoint": {
+      "description": "Конец сегмента: блок, край листа или узел ветвления — ровно одно из трёх. Опустить конец целиком значит «висит неприсоединённым»: в моделях Ramus такие есть.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["flow", "on", "points"],
       "properties": {
-        "flow": { "$ref": "#/$defs/name" },
+        "function": { "$ref": "#/$defs/name" },
+        "side": { "$ref": "#/$defs/blockSide" },
+        "border": { "$ref": "#/$defs/sheetSide" },
+        "node": {
+          "$ref": "#/$defs/name",
+          "description": "Имя узла ветвления или слияния. Область видимости — одна стрелка: узлы разных потоков не пересекаются даже при совпадении имён."
+        },
+        "tunnel": {
+          "description": "Туннельная стрелка: конец нарисован в скобках и намеренно не переходит на соседний уровень декомпозиции.",
+          "type": "boolean"
+        }
+      }
+    },
+    "segment": {
+      "description": "Один нарисованный кусок стрелки на одной диаграмме.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["on", "points"],
+      "properties": {
         "on": {
           "$ref": "#/$defs/name",
           "description": "Чья это диаграмма: имя работы, а для контекстной диаграммы — имя модели."
@@ -239,12 +265,26 @@
           "description": "Сегмент лежит на контекстной диаграмме A-0, а не в декомпозиции корневой работы. Различить их иначе нельзя: обе зовутся именем модели.",
           "type": "boolean"
         },
-        "from": { "$ref": "#/$defs/name" },
-        "to": { "$ref": "#/$defs/name" },
+        "from": { "$ref": "#/$defs/endpoint" },
+        "to": { "$ref": "#/$defs/endpoint" },
         "points": {
           "type": "array",
           "minItems": 2,
           "items": { "$ref": "#/$defs/point" }
+        }
+      }
+    },
+    "arrowLayout": {
+      "description": "Геометрия одной стрелки: набор сегментов, сшитых узлами. Ординаты (общие направляющие Ramus) в язык не входят — их раздаёт компилятор.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow", "segments"],
+      "properties": {
+        "flow": { "$ref": "#/$defs/name" },
+        "segments": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/segment" }
         }
       }
     },

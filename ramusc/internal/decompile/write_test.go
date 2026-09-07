@@ -103,13 +103,47 @@ func TestRoundTripThroughLanguage(t *testing.T) {
 					len(got.Layout.Functions), len(got.Layout.Arrows))
 			}
 			for i, a := range source.Layout.Arrows {
-				if got.Layout.Arrows[i].Context != a.Context {
-					t.Errorf("ломаная %d: context = %v, был %v",
-						i, got.Layout.Arrows[i].Context, a.Context)
+				gotArrow := got.Layout.Arrows[i]
+				if gotArrow.Flow.Name != a.Flow.Name {
+					t.Errorf("стрелка %d: поток %q, был %q", i, gotArrow.Flow.Name, a.Flow.Name)
 				}
-				if len(got.Layout.Arrows[i].Points) != len(a.Points) {
-					t.Errorf("ломаная %d: точек %d, было %d",
-						i, len(got.Layout.Arrows[i].Points), len(a.Points))
+				if len(gotArrow.Segments) != len(a.Segments) {
+					t.Fatalf("стрелка «%s»: сегментов %d, было %d",
+						a.Flow.Name, len(gotArrow.Segments), len(a.Segments))
+				}
+				for j, s := range a.Segments {
+					gotSeg := gotArrow.Segments[j]
+					if gotSeg.Context != s.Context || gotSeg.On.Name != s.On.Name {
+						t.Errorf("«%s» сегмент %d: диаграмма %q/%v, была %q/%v",
+							a.Flow.Name, j, gotSeg.On.Name, gotSeg.Context, s.On.Name, s.Context)
+					}
+					if len(gotSeg.Points) != len(s.Points) {
+						t.Errorf("«%s» сегмент %d: точек %d, было %d",
+							a.Flow.Name, j, len(gotSeg.Points), len(s.Points))
+					}
+					// Концы — самое хрупкое место: узлы сшивают ветвление,
+					// и потеря вида конца рвёт стрелку.
+					for _, end := range []struct {
+						key       string
+						got, want *ir.Endpoint
+					}{{"from", gotSeg.From, s.From}, {"to", gotSeg.To, s.To}} {
+						if end.got.Kind() != end.want.Kind() {
+							t.Errorf("«%s» сегмент %d, конец %s: вид %q, был %q",
+								a.Flow.Name, j, end.key, end.got.Kind(), end.want.Kind())
+							continue
+						}
+						if end.want == nil {
+							continue
+						}
+						if end.got.Function.Name != end.want.Function.Name ||
+							end.got.Side != end.want.Side ||
+							end.got.Border != end.want.Border ||
+							end.got.Node.Name != end.want.Node.Name ||
+							end.got.Tunnel != end.want.Tunnel {
+							t.Errorf("«%s» сегмент %d, конец %s: %+v, был %+v",
+								a.Flow.Name, j, end.key, end.got, end.want)
+						}
+					}
 				}
 			}
 			for i, f := range source.Layout.Functions {

@@ -107,4 +107,8 @@ const (
 	CodeDuplicateLayout Code = "duplicate_layout"
 	// CodeBadGeometry — координата или размер, которых не бывает.
 	CodeBadGeometry Code = "bad_geometry"
+	// CodeBadEndpoint — конец сегмента стрелки описан неверно.
+	CodeBadEndpoint Code = "bad_endpoint"
+	// CodeLonelyNode — узел стрелки упомянут один раз и ничего не сшивает.
+	CodeLonelyNode Code = "lonely_node"
 )

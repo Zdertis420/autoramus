@@ -161,9 +161,9 @@ func links(sides *rsf.ICOM, name ir.Ref, path string) []*ir.Link {
 	return out
 }
 
-// layout переносит геометрию: координаты всех блоков и те сегменты, чьи оба
-// конца выразимы нынешним форматом. Ломаные, упирающиеся в узлы ветвления,
-// записать нечем — сколько их, печатает шапка документа.
+// layout переносит геометрию целиком: координаты блоков и все сегменты
+// стрелок, сшитые узлами. Ординаты Ramus сюда не идут — это способ
+// выравнивать соседние стрелки, и раздавать их заново будет генератор (Р1).
 func layout(m *rsf.Model, ordered []rsf.Function, byID map[int64]rsf.Function, root rsf.Function) *ir.Layout {
 	out := &ir.Layout{Path: "/layout"}
 
@@ -182,56 +182,112 @@ func layout(m *rsf.Model, ordered []rsf.Function, byID map[int64]rsf.Function, r
 		})
 	}
 
-	streams := make(map[int64]string)
-	for _, s := range m.Streams() {
-		streams[s.ID] = s.Name
+	// Сегменты группируются по потоку: стрелка — это дерево кусков, а не
+	// набор независимых линий. Порядок потоков берётся из модели, порядок
+	// сегментов внутри — из файла, чтобы вывод был устойчив.
+	byFlow := make(map[int64][]rsf.Sector)
+	for _, sector := range m.Sectors() {
+		byFlow[sector.Stream] = append(byFlow[sector.Stream], sector)
 	}
 
-	for _, sector := range m.Sectors() {
-		if !expressible(sector) {
+	for _, stream := range m.Streams() {
+		sectors := byFlow[stream.ID]
+		if len(sectors) == 0 {
 			continue
 		}
 		path := fmt.Sprintf("/layout/arrows/%d", len(out.Arrows))
 		arrow := &ir.ArrowLayout{
-			Flow: ref(streams[sector.Stream], path+"/flow"),
-			On:   ref(root.Name, path+"/on"),
+			Flow: ref(stream.Name, path+"/flow"),
 			Path: path,
 		}
-		if sector.Diagram == m.Element {
-			// Контекстная диаграмма зовётся так же, как корневая работа,
-			// и отличается только этой пометкой.
-			arrow.Context = true
-		} else {
-			arrow.On = ref(byID[sector.Diagram].Name, path+"/on")
-		}
-		if sector.Start.OnFunction() {
-			arrow.From = ref(byID[sector.Start.Function].Name, path+"/from")
-		}
-		if sector.End.OnFunction() {
-			arrow.To = ref(byID[sector.End.Function].Name, path+"/to")
-		}
-		for i, p := range sector.Points {
-			point := fmt.Sprintf("%s/points/%d", path, i)
-			arrow.Points = append(arrow.Points, ir.Point{
-				X:    num(p.X, point+"/0"),
-				Y:    num(p.Y, point+"/1"),
-				Path: point,
-			})
+		// Имена узлов свои у каждой стрелки: кросспоинт в файле всегда
+		// принадлежит ровно одному потоку, пересечься они не могут.
+		nodes := newNodeNamer()
+
+		for i, sector := range sectors {
+			segPath := fmt.Sprintf("%s/segments/%d", path, i)
+			seg := &ir.Segment{
+				On:   ref(root.Name, segPath+"/on"),
+				Path: segPath,
+			}
+			if sector.Diagram == m.Element {
+				// Контекстная диаграмма зовётся так же, как корневая работа,
+				// и отличается только этой пометкой.
+				seg.Context = true
+			} else {
+				seg.On = ref(byID[sector.Diagram].Name, segPath+"/on")
+			}
+			seg.From = endpoint(sector.Start, byID, nodes, segPath+"/from")
+			seg.To = endpoint(sector.End, byID, nodes, segPath+"/to")
+
+			for j, p := range sector.Points {
+				point := fmt.Sprintf("%s/points/%d", segPath, j)
+				seg.Points = append(seg.Points, ir.Point{
+					X:    num(p.X, point+"/0"),
+					Y:    num(p.Y, point+"/1"),
+					Path: point,
+				})
+			}
+			arrow.Segments = append(arrow.Segments, seg)
 		}
 		out.Arrows = append(out.Arrows, arrow)
 	}
 	return out
 }
 
-// expressible сообщает, влезает ли сегмент в нынешний layout.arrows: концы
-// в узлах ветвления и висящие концы записать нечем.
-func expressible(s rsf.Sector) bool {
-	for _, end := range []*rsf.Border{s.Start, s.End} {
-		if !end.OnFunction() && !end.OnBorder() {
-			return false
-		}
+// endpoint переводит конец сегмента. Отсутствие строки границы — это висящий
+// конец, и он отличается от конца, у которого просто не указан вид: в первом
+// случае возвращается nil.
+func endpoint(b *rsf.Border, byID map[int64]rsf.Function, nodes *nodeNamer, path string) *ir.Endpoint {
+	if b == nil {
+		return nil
 	}
-	return len(s.Points) > 0
+	e := &ir.Endpoint{Tunnel: b.TunnelSoft, Path: path}
+	switch {
+	case b.OnFunction():
+		e.Function = ref(byID[b.Function].Name, path+"/function")
+		e.Side = b.FunctionType.ICOM()
+	case b.OnBorder():
+		e.Border = sheetSide(b.BorderType)
+	default:
+		e.Node = ref(nodes.name(b.Crosspoint), path+"/node")
+	}
+	return e
+}
+
+// sheetSide переводит код края листа. Коды те же, что у сторон блока, но
+// смысл геометрический: у края нет роли ICOM.
+func sheetSide(code int) string {
+	switch rsf.Side(code) {
+	case rsf.SideLeft:
+		return ir.BorderLeft
+	case rsf.SideRight:
+		return ir.BorderRight
+	case rsf.SideTop:
+		return ir.BorderTop
+	case rsf.SideBottom:
+		return ir.BorderBottom
+	default:
+		return ""
+	}
+}
+
+// nodeNamer выдаёт узлам стрелки короткие имена n1, n2, … в порядке первой
+// встречи. Числовые кросспоинты Ramus в язык не тянем: это внутренние
+// идентификаторы файла, а здесь нужна просто метка.
+type nodeNamer struct {
+	names map[int64]string
+}
+
+func newNodeNamer() *nodeNamer { return &nodeNamer{names: make(map[int64]string)} }
+
+func (n *nodeNamer) name(crosspoint int64) string {
+	if name, ok := n.names[crosspoint]; ok {
+		return name
+	}
+	name := fmt.Sprintf("n%d", len(n.names)+1)
+	n.names[crosspoint] = name
+	return name
 }
 
 // OrphanFlows перечисляет потоки, у которых в модели нет ни одного сегмента.
@@ -251,17 +307,6 @@ func OrphanFlows(m *rsf.Model) []string {
 		}
 	}
 	return out
-}
-
-// Skipped считает сегменты, которые в документ не попали.
-func Skipped(m *rsf.Model) (skipped, total int) {
-	sectors := m.Sectors()
-	for _, s := range sectors {
-		if !expressible(s) {
-			skipped++
-		}
-	}
-	return skipped, len(sectors)
 }
 
 // elementType переводит F_TYPE в вид элемента входного языка. Всё, что не

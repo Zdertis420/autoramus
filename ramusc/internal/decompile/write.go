@@ -139,27 +139,62 @@ func writeLayoutYAML(b *strings.Builder, l *layoutDoc) {
 	if len(l.Arrows) == 0 {
 		return
 	}
+
 	b.WriteString("  arrows:\n")
 	for i, a := range l.Arrows {
 		if i > 0 {
 			b.WriteString("\n")
 		}
 		b.WriteString("    - flow: " + yamlString(a.Flow) + "\n")
-		b.WriteString("      on: " + yamlString(a.On) + "\n")
-		if a.Context {
-			b.WriteString("      context: true\n")
-		}
-		for _, field := range []struct{ key, value string }{{"from", a.From}, {"to", a.To}} {
-			if field.value != "" {
-				b.WriteString("      " + field.key + ": " + yamlString(field.value) + "\n")
+		b.WriteString("      segments:\n")
+		for j, s := range a.Segments {
+			if j > 0 {
+				b.WriteString("\n")
 			}
+			b.WriteString("        - on: " + yamlString(s.On) + "\n")
+			if s.Context {
+				b.WriteString("          context: true\n")
+			}
+			// from и to выравниваются друг под другом: концы читаются парой.
+			for _, end := range []struct {
+				key      string
+				endpoint *endpointDoc
+			}{{"from", s.From}, {"to", s.To}} {
+				if end.endpoint == nil {
+					continue // висящий конец: писать нечего
+				}
+				b.WriteString("          " + pad(end.key+":", len("from:")) + " " +
+					endpointYAML(end.endpoint) + "\n")
+			}
+			points := make([]string, len(s.Points))
+			for k, p := range s.Points {
+				points[k] = "[" + number(p[0]) + ", " + number(p[1]) + "]"
+			}
+			writeList(b, "          ", "points:", points)
 		}
-		points := make([]string, len(a.Points))
-		for j, p := range a.Points {
-			points[j] = "[" + number(p[0]) + ", " + number(p[1]) + "]"
-		}
-		writeList(b, "      ", "points:", points)
 	}
+}
+
+// endpointYAML печатает конец сегмента потоковым отображением: он короткий,
+// и разворачивать его в блок значило бы утопить геометрию в отступах.
+func endpointYAML(e *endpointDoc) string {
+	var fields []string
+	if e.Function != "" {
+		fields = append(fields, "function: "+yamlString(e.Function))
+	}
+	if e.Side != "" {
+		fields = append(fields, "side: "+yamlString(e.Side))
+	}
+	if e.Border != "" {
+		fields = append(fields, "border: "+yamlString(e.Border))
+	}
+	if e.Node != "" {
+		fields = append(fields, "node: "+yamlString(e.Node))
+	}
+	if e.Tunnel {
+		fields = append(fields, "tunnel: true")
+	}
+	return "{" + strings.Join(fields, ", ") + "}"
 }
 
 // writeFlowList печатает список имён потоков потоковым стилем и выравнивает
@@ -270,12 +305,24 @@ type functionLayoutDoc struct {
 }
 
 type arrowLayoutDoc struct {
-	Flow    string       `json:"flow"`
+	Flow     string       `json:"flow"`
+	Segments []segmentDoc `json:"segments"`
+}
+
+type segmentDoc struct {
 	On      string       `json:"on"`
 	Context bool         `json:"context,omitempty"`
-	From    string       `json:"from,omitempty"`
-	To      string       `json:"to,omitempty"`
+	From    *endpointDoc `json:"from,omitempty"`
+	To      *endpointDoc `json:"to,omitempty"`
 	Points  [][2]float64 `json:"points"`
+}
+
+type endpointDoc struct {
+	Function string `json:"function,omitempty"`
+	Side     string `json:"side,omitempty"`
+	Border   string `json:"border,omitempty"`
+	Node     string `json:"node,omitempty"`
+	Tunnel   bool   `json:"tunnel,omitempty"`
 }
 
 // newDocument переводит IR в документ. Связь с обоими концами остаётся
@@ -362,12 +409,18 @@ func newLayout(l *ir.Layout) *layoutDoc {
 		out.Functions = append(out.Functions, entry)
 	}
 	for _, a := range l.Arrows {
-		entry := arrowLayoutDoc{
-			Flow: a.Flow.Raw, On: a.On.Raw, Context: a.Context,
-			From: a.From.Raw, To: a.To.Raw,
-		}
-		for _, p := range a.Points {
-			entry.Points = append(entry.Points, [2]float64{p.X.Val, p.Y.Val})
+		entry := arrowLayoutDoc{Flow: a.Flow.Raw}
+		for _, s := range a.Segments {
+			seg := segmentDoc{
+				On:      s.On.Raw,
+				Context: s.Context,
+				From:    newEndpoint(s.From),
+				To:      newEndpoint(s.To),
+			}
+			for _, p := range s.Points {
+				seg.Points = append(seg.Points, [2]float64{p.X.Val, p.Y.Val})
+			}
+			entry.Segments = append(entry.Segments, seg)
 		}
 		out.Arrows = append(out.Arrows, entry)
 	}
@@ -375,6 +428,21 @@ func newLayout(l *ir.Layout) *layoutDoc {
 		return nil
 	}
 	return out
+}
+
+// newEndpoint возвращает nil для висящего конца: его в документе не должно
+// быть вовсе, а не «пустым объектом».
+func newEndpoint(e *ir.Endpoint) *endpointDoc {
+	if e == nil {
+		return nil
+	}
+	return &endpointDoc{
+		Function: e.Function.Raw,
+		Side:     e.Side,
+		Border:   e.Border,
+		Node:     e.Node.Raw,
+		Tunnel:   e.Tunnel,
+	}
 }
 
 // yamlString печатает скаляр, беря его в кавычки там, где иначе YAML

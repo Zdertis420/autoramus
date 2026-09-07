@@ -30,12 +30,23 @@ const (
 	TypeRole     = "role"
 )
 
-// Стороны блока. Значение относится к концу `to` связи: конец `from` — всегда
-// выход, так устроен ICOM.
+// Стороны блока. В связи значение относится к концу `to`: конец `from` —
+// всегда выход, так устроен ICOM. В геометрии стороной помечается любой конец,
+// поэтому там возможен и SideOut.
 const (
 	SideIn        = "in"
 	SideControl   = "control"
 	SideMechanism = "mechanism"
+	SideOut       = "out"
+)
+
+// Края листа (поле border у конца сегмента). Названия геометрические: у края
+// нет роли ICOM, он просто сторона диаграммы.
+const (
+	BorderLeft   = "left"
+	BorderRight  = "right"
+	BorderTop    = "top"
+	BorderBottom = "bottom"
 )
 
 // Типы колонок классификатора (Р8); словарь повторяет типы Ramus.
@@ -231,20 +242,70 @@ type FunctionLayout struct {
 	Pos  diag.Pos
 }
 
-// ArrowLayout — ломаная одного сегмента стрелки на одной диаграмме.
+// ArrowLayout — геометрия одной стрелки: сегменты, сшитые узлами. Ординаты
+// Ramus сюда не попадают: это способ выравнивать соседние стрелки, дело
+// компилятора, а не автора (Р1).
 type ArrowLayout struct {
-	Flow Ref
-	On   Ref // чья диаграмма: работа или, для контекстной, имя модели
+	Flow     Ref
+	Segments []*Segment
+
+	Path string
+	Pos  diag.Pos
+}
+
+// Segment — один нарисованный кусок стрелки на одной диаграмме.
+type Segment struct {
+	On Ref // чья диаграмма: работа или, для контекстной, имя модели
 	// Context — сегмент лежит на контекстной диаграмме A-0. Корневая работа
 	// и модель зовутся одинаково, и без этой пометки диаграмма A-0
 	// неотличима от декомпозиции корневой работы.
 	Context bool
-	From    Ref
-	To      Ref
-	Points  []Point
+	// From и To равны nil, когда конец висит неприсоединённым: в моделях
+	// Ramus строки границы у такого конца нет вовсе.
+	From   *Endpoint
+	To     *Endpoint
+	Points []Point
 
 	Path string
 	Pos  diag.Pos
+}
+
+// Endpoint — конец сегмента: блок, край листа или узел. Ровно одно из трёх;
+// что именно, говорит Kind.
+type Endpoint struct {
+	Function Ref
+	Side     string // сторона блока: in | control | mechanism | out
+	Border   string // край листа: left | right | top | bottom
+	Node     Ref    // узел ветвления; область видимости — одна стрелка
+	Tunnel   bool   // туннельная стрелка: конец в скобках
+
+	Path string
+	Pos  diag.Pos
+}
+
+// Виды конца сегмента.
+const (
+	EndpointNone     = ""
+	EndpointFunction = "function"
+	EndpointBorder   = "border"
+	EndpointNode     = "node"
+)
+
+// Kind сообщает, чем конец является. Если заполнено больше одного поля,
+// об этом скажет валидатор, а Kind назовёт первое по порядку.
+func (e *Endpoint) Kind() string {
+	switch {
+	case e == nil:
+		return EndpointNone
+	case e.Function.Set():
+		return EndpointFunction
+	case e.Border != "":
+		return EndpointBorder
+	case e.Node.Set():
+		return EndpointNode
+	default:
+		return EndpointNone
+	}
 }
 
 // Point — точка ломаной.

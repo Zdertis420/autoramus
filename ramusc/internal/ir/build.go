@@ -174,28 +174,58 @@ func buildLayout(c cursor) *Layout {
 	}
 	for _, it := range c.list("arrows") {
 		a := &ArrowLayout{
-			Flow:    it.refField("flow"),
-			On:      it.refField("on"),
-			Context: it.boolField("context"),
-			From:    it.refField("from"),
-			To:      it.refField("to"),
-			Path:    it.path,
-			Pos:     it.pos(),
+			Flow: it.refField("flow"),
+			Path: it.path,
+			Pos:  it.pos(),
 		}
-		for _, p := range it.list("points") {
-			coords := p.items()
-			pt := Point{Path: p.path, Pos: p.pos()}
-			if len(coords) > 0 {
-				pt.X = coords[0].num()
-			}
-			if len(coords) > 1 {
-				pt.Y = coords[1].num()
-			}
-			a.Points = append(a.Points, pt)
+		for _, s := range it.list("segments") {
+			a.Segments = append(a.Segments, buildSegment(s))
 		}
 		l.Arrows = append(l.Arrows, a)
 	}
 	return l
+}
+
+func buildSegment(c cursor) *Segment {
+	s := &Segment{
+		On:      c.refField("on"),
+		Context: c.boolField("context"),
+		From:    buildEndpoint(c, "from"),
+		To:      buildEndpoint(c, "to"),
+		Path:    c.path,
+		Pos:     c.pos(),
+	}
+	for _, p := range c.list("points") {
+		coords := p.items()
+		pt := Point{Path: p.path, Pos: p.pos()}
+		if len(coords) > 0 {
+			pt.X = coords[0].num()
+		}
+		if len(coords) > 1 {
+			pt.Y = coords[1].num()
+		}
+		s.Points = append(s.Points, pt)
+	}
+	return s
+}
+
+// buildEndpoint возвращает nil, когда конца нет вовсе: у висящего конца
+// в файле Ramus нет строки границы, и это отличается от конца, у которого
+// не указан вид.
+func buildEndpoint(c cursor, key string) *Endpoint {
+	f, ok := c.field(key)
+	if !ok {
+		return nil
+	}
+	return &Endpoint{
+		Function: f.refField("function"),
+		Side:     Normalize(f.strField("side")),
+		Border:   Normalize(f.strField("border")),
+		Node:     f.refField("node"),
+		Tunnel:   f.boolField("tunnel"),
+		Path:     f.path,
+		Pos:      f.pos(),
+	}
 }
 
 func buildRaw(c cursor) []RawAttr {
