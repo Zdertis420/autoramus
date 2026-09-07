@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "hierarchy_cycle",
+    "message": "цикл в иерархии работ: «Раскрой материала» → «Сшивание деталей» → «Раскрой материала»",
+    "path": "/functions/1/of",
+    "line": 13,
+    "column": 9
+  }
+]

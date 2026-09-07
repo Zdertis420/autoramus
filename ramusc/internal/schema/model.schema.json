@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/Zdertis420/autoramus/schema/model.schema.json",
   "title": "Модель Ramus",
-  "$comment": "TODO: секции links (Р7), classifiers (Р8), raw (Р9), layout (Р2) и типы элементов DFD ещё не описаны — сейчас такие поля отвергаются как незнакомые.",
+  "$comment": "Схема описывает форму документа. Всё, что связывает поля между собой (объявлен ли поток, существует ли работа, подходит ли значение типу колонки), проверяет семантический слой: там сообщение получается адресным.",
 
   "type": "object",
   "additionalProperties": false,
@@ -21,23 +21,75 @@
       "uniqueItems": true,
       "items": { "$ref": "#/$defs/name" }
     },
+    "streams": {
+      "description": "Атрибуты потоков. Необязательна: сам словарь имён — это flows, а сюда попадает только то, у чего есть что сказать сверх имени (Р12).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/stream" }
+    },
     "functions": {
       "type": "array",
       "minItems": 1,
       "items": { "$ref": "#/$defs/function" }
+    },
+    "links": {
+      "description": "Общая форма связи (Р7). Списки in/control/out/mechanism — сахар над ней, обе формы опускаются в одно IR.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/link" }
+    },
+    "classifiers": {
+      "description": "Классификаторы Ramus — таблицы с типизированными колонками (Р8).",
+      "type": "array",
+      "items": { "$ref": "#/$defs/classifier" }
+    },
+    "layout": {
+      "description": "Оверрайд автораскладки (Р2). Автор её обычно не пишет; декомпилятор заполняет полностью.",
+      "$ref": "#/$defs/layout"
     }
   },
 
   "$defs": {
     "name": {
-      "description": "Имя работы или потока. Оно же идентификатор (Р4). Имя из одних пробелов схема пропускает: нормализация пробелов и проверка пустоты после неё — дело этапа IR, там и сообщение получится внятным.",
+      "description": "Имя работы, потока, классификатора или колонки. Оно же идентификатор (Р4). Имя из одних пробелов схема пропускает: нормализация пробелов и проверка пустоты после неё — дело этапа IR, там и сообщение получится внятным.",
       "type": "string",
       "minLength": 1
+    },
+    "note": {
+      "description": "Комментарий; попадает в текстовый атрибут и виден в самом Ramus (Р12).",
+      "type": "string"
     },
     "flowList": {
       "type": "array",
       "items": { "$ref": "#/$defs/name" }
     },
+
+    "raw": {
+      "description": "Люк для атрибутов, которых схема не знает (Р9). Значение намеренно не проверяется: смысл люка в том, чтобы не упираться в потолок формата.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attribute", "value"],
+        "properties": {
+          "attribute": {
+            "$ref": "#/$defs/name",
+            "description": "Имя атрибута Ramus, например F_STATUS."
+          },
+          "value": true
+        }
+      }
+    },
+
+    "stream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "note": { "$ref": "#/$defs/note" },
+        "raw": { "$ref": "#/$defs/raw" }
+      }
+    },
+
     "function": {
       "type": "object",
       "additionalProperties": false,
@@ -48,13 +100,161 @@
           "$ref": "#/$defs/name",
           "description": "Родительская работа. Иерархия задаётся ссылкой, а не вложенностью (Р3)."
         },
+        "kind": {
+          "description": "Вид диаграммы-декомпозиции этой работы (Р8). По умолчанию idef0.",
+          "enum": ["idef0", "dfd"]
+        },
+        "type": {
+          "description": "Вид самого элемента (Р8). Всё, кроме process, допустимо только на диаграмме DFD.",
+          "enum": ["process", "store", "external", "role"]
+        },
         "in": { "$ref": "#/$defs/flowList" },
         "control": { "$ref": "#/$defs/flowList" },
         "out": { "$ref": "#/$defs/flowList" },
         "mechanism": { "$ref": "#/$defs/flowList" },
-        "note": {
-          "type": "string",
-          "description": "Комментарий; попадает в текстовый атрибут и виден в самом Ramus (Р12)."
+        "note": { "$ref": "#/$defs/note" },
+        "raw": { "$ref": "#/$defs/raw" }
+      }
+    },
+
+    "side": {
+      "description": "Сторона блока у конца `to`. Выход у конца `from` подразумевается: так устроен ICOM.",
+      "enum": ["in", "control", "mechanism"]
+    },
+    "link": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow"],
+      "properties": {
+        "flow": { "$ref": "#/$defs/name" },
+        "from": {
+          "$ref": "#/$defs/name",
+          "description": "Кто производит. Опущено — поток приходит с границы листа."
+        },
+        "to": {
+          "$ref": "#/$defs/name",
+          "description": "Кто потребляет. Опущено — поток уходит на границу листа."
+        },
+        "side": { "$ref": "#/$defs/side" },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+
+    "columnType": {
+      "description": "Словарь повторяет типы Ramus: ref — Core.OtherElement, list — Core.ElementList (Р8).",
+      "enum": ["text", "number", "long", "date", "bool", "ref", "list"]
+    },
+    "column": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "type"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "type": { "$ref": "#/$defs/columnType" },
+        "of": {
+          "$ref": "#/$defs/name",
+          "description": "Куда ссылается колонка ref или list: имя классификатора. Опущено — ссылка на работу."
+        },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+    "cellValue": {
+      "description": "Тип значения обязан подходить типу колонки, но связать их схемой нельзя — это делает семантический слой.",
+      "type": ["string", "number", "boolean", "array"],
+      "items": { "$ref": "#/$defs/name" }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["column", "value"],
+      "properties": {
+        "column": { "$ref": "#/$defs/name" },
+        "value": { "$ref": "#/$defs/cellValue" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cells"],
+      "properties": {
+        "cells": {
+          "description": "Ячейка называет свою колонку: позиционный список молча разъезжается при пропуске значения.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/cell" }
+        },
+        "note": { "$ref": "#/$defs/note" },
+        "raw": { "$ref": "#/$defs/raw" }
+      }
+    },
+    "classifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "columns"],
+      "properties": {
+        "name": { "$ref": "#/$defs/name" },
+        "columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/column" }
+        },
+        "rows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/row" }
+        },
+        "note": { "$ref": "#/$defs/note" }
+      }
+    },
+
+    "point": {
+      "description": "Точка ломаной: [x, y].",
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": { "type": "number" }
+    },
+    "functionLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["function", "x", "y"],
+      "properties": {
+        "function": { "$ref": "#/$defs/name" },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": { "type": "number" },
+        "height": { "type": "number" }
+      }
+    },
+    "arrowLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flow", "on", "points"],
+      "properties": {
+        "flow": { "$ref": "#/$defs/name" },
+        "on": {
+          "$ref": "#/$defs/name",
+          "description": "Чья это диаграмма: имя работы, а для контекстной диаграммы — имя модели."
+        },
+        "from": { "$ref": "#/$defs/name" },
+        "to": { "$ref": "#/$defs/name" },
+        "points": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/point" }
+        }
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "functions": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/functionLayout" }
+        },
+        "arrows": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/arrowLayout" }
         }
       }
     }

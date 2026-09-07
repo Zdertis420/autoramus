@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "unknown_function",
+    "message": "работа «Изготовление юбок» не найдена; похоже на «Изготовление юбки»",
+    "path": "/functions/1/of",
+    "line": 14,
+    "column": 13
+  }
+]

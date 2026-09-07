@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "dfd_type_outside_dfd",
+    "message": "тип «store» допустим только на диаграмме DFD, а у работы «Обработка заказов» не указан kind: dfd",
+    "path": "/functions/2/type",
+    "line": 21,
+    "column": 11
+  }
+]

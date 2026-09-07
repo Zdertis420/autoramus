@@ -1,0 +1,26 @@
+[
+  {
+    "severity": "error",
+    "code": "bad_geometry",
+    "message": "width должен быть положительным числом",
+    "path": "/layout/functions/0/width",
+    "line": 17,
+    "column": 14
+  },
+  {
+    "severity": "error",
+    "code": "duplicate_layout",
+    "message": "раскладка работы «Изготовление юбки» уже задана в строке 14",
+    "path": "/layout/functions/1/function",
+    "line": 20,
+    "column": 17
+  },
+  {
+    "severity": "error",
+    "code": "unknown_function",
+    "message": "работа «Раскрой материала» не найдена",
+    "path": "/layout/functions/2/function",
+    "line": 24,
+    "column": 17
+  }
+]

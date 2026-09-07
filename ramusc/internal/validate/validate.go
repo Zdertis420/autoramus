@@ -12,6 +12,7 @@ import (
 	"golang.org/x/text/message"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/diag"
+	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 	"github.com/Zdertis420/autoramus/ramusc/internal/schema"
 	"github.com/Zdertis420/autoramus/ramusc/internal/syntax"
 )
@@ -20,12 +21,14 @@ import (
 // разобрали поимённо, текст берётся у самой библиотеки.
 var printer = message.NewPrinter(language.English)
 
-// Source проходит весь путь от текста до диагностики: разбор, а затем проверка
-// по схеме. Компиляция начинается с того же самого, поэтому двух наборов
-// сообщений об одной и той же ошибке не возникает.
+// Source проходит весь путь от текста до диагностики: разбор, проверка по
+// схеме, а затем проверка смысла. Компиляция начинается с того же самого,
+// поэтому двух наборов сообщений об одной и той же ошибке не возникает.
 //
-// Если документ не разобрался, проверка по схеме не запускается: валидировать
-// нечего, а сыпать поверх синтаксической ошибки десятком наведённых бессмысленно.
+// Каждый следующий этап запускается только тогда, когда предыдущий не нашёл
+// ошибок: валидировать нечего, а сыпать поверх синтаксической ошибки десятком
+// наведённых бессмысленно. По той же причине смысловые проверки не видят
+// документа с неверными типами полей — они вправе считать форму верной.
 func Source(src []byte) (diag.List, error) {
 	root, diags := syntax.Load(src)
 	if diags.HasErrors() {
@@ -37,6 +40,9 @@ func Source(src []byte) (diag.List, error) {
 		return nil, err
 	}
 	diags = append(diags, schemaDiags...)
+	if !diags.HasErrors() {
+		diags = append(diags, Semantic(ir.Build(root))...)
+	}
 	diags.Sort()
 	return diags, nil
 }

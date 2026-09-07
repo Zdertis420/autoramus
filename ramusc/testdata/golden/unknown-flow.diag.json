@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "warning",
+    "code": "unused_flow",
+    "message": "поток «Выкройка» объявлен, но нигде не используется",
+    "path": "/flows/2",
+    "line": 4,
+    "column": 38
+  },
+  {
+    "severity": "error",
+    "code": "unknown_flow",
+    "message": "поток «Выкройки» не объявлен в flows; похоже на «Выкройка»",
+    "path": "/functions/0/mechanism/0",
+    "line": 10,
+    "column": 17
+  }
+]

@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "error",
+    "code": "cell_type",
+    "message": "«12.05.2024» не похоже на дату: колонка «Утверждён» ждёт ГГГГ-ММ-ДД",
+    "path": "/classifiers/0/rows/0/cells/1/value",
+    "line": 26,
+    "column": 20
+  },
+  {
+    "severity": "error",
+    "code": "cell_type",
+    "message": "колонка «Версия» имеет тип «long»: ожидается целое число, получено число",
+    "path": "/classifiers/0/rows/0/cells/2/value",
+    "line": 28,
+    "column": 20
+  }
+]

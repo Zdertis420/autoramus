@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "error",
+    "code": "empty_name",
+    "message": "имя потока не может быть пустым: в нём одни пробелы",
+    "path": "/flows/4",
+    "line": 3,
+    "column": 61
+  },
+  {
+    "severity": "error",
+    "code": "empty_name",
+    "message": "имя работы не может быть пустым: в нём одни пробелы",
+    "path": "/functions/1/name",
+    "line": 12,
+    "column": 11
+  }
+]

@@ -1,0 +1,42 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_column",
+    "message": "колонка «Название» уже объявлена в строке 17",
+    "path": "/classifiers/0/columns/1/name",
+    "line": 19,
+    "column": 15
+  },
+  {
+    "severity": "error",
+    "code": "unknown_classifier",
+    "message": "классификатор «Работы» не найден",
+    "path": "/classifiers/0/columns/2/of",
+    "line": 23,
+    "column": 13
+  },
+  {
+    "severity": "error",
+    "code": "unexpected_column_target",
+    "message": "поле of имеет смысл только у колонок ref и list, а у «Версия» тип «long»",
+    "path": "/classifiers/0/columns/3/of",
+    "line": 26,
+    "column": 13
+  },
+  {
+    "severity": "error",
+    "code": "duplicate_cell",
+    "message": "колонка «Название» в этой строке уже заполнена в строке 29",
+    "path": "/classifiers/0/rows/0/cells/1/column",
+    "line": 31,
+    "column": 21
+  },
+  {
+    "severity": "error",
+    "code": "unknown_column",
+    "message": "у классификатора «Документы» нет колонки «Названье»; похоже на «Название»",
+    "path": "/classifiers/0/rows/0/cells/2/column",
+    "line": 33,
+    "column": 21
+  }
+]

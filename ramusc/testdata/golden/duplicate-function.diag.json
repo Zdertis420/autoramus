@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_function",
+    "message": "работа «Раскрой материала» уже объявлена в строке 12: имя работы — это её идентификатор (Р4)",
+    "path": "/functions/2/name",
+    "line": 19,
+    "column": 11
+  }
+]

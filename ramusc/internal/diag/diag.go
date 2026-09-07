@@ -54,6 +54,14 @@ func New(code Code, pos Pos, path, format string, args ...any) Diagnostic {
 	}
 }
 
+// NewWarning собирает диагностику уровня Warning: модель соберётся, но автору
+// стоит посмотреть.
+func NewWarning(code Code, pos Pos, path, format string, args ...any) Diagnostic {
+	d := New(code, pos, path, format, args...)
+	d.Severity = Warning
+	return d
+}
+
 // List — набор диагностик одного запуска.
 type List []Diagnostic
 
@@ -68,6 +76,19 @@ func (l List) HasErrors() bool {
 		}
 	}
 	return false
+}
+
+// Count считает ошибки и предупреждения по отдельности: в итоговой строке
+// смешивать их нельзя, коды возврата у них разные.
+func (l List) Count() (errors, warnings int) {
+	for _, d := range l {
+		if d.Severity == Warning {
+			warnings++
+			continue
+		}
+		errors++
+	}
+	return errors, warnings
 }
 
 // Sort приводит список к детерминированному порядку: сверху вниз по документу,

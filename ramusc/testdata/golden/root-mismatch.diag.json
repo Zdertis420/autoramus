@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "root_name_mismatch",
+    "message": "корневая работа «Пошив юбки» и поле model «Изготовление юбки» должны совпадать: контекстная диаграмма — это и есть модель",
+    "path": "/functions/0/name",
+    "line": 6,
+    "column": 15
+  }
+]

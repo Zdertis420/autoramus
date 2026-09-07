@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "error",
+    "code": "unknown_row",
+    "message": "в классификаторе «Документы» нет строки «Технический регламен» (колонка «Название»); похоже на «Технический регламент»",
+    "path": "/classifiers/1/rows/0/cells/1/value",
+    "line": 37,
+    "column": 20
+  },
+  {
+    "severity": "error",
+    "code": "unknown_function",
+    "message": "работа «Изготовление юбок» не найдена; похоже на «Изготовление юбки»",
+    "path": "/classifiers/1/rows/0/cells/2/value",
+    "line": 39,
+    "column": 20
+  }
+]

@@ -108,12 +108,22 @@ func report(stdout, stderr io.Writer, filename string, diags diag.List, jsonOut 
 	if err := diags.WriteText(stderr, filename); err != nil {
 		return err
 	}
-	if diags.HasErrors() {
-		fmt.Fprintf(stderr, "%s: ошибок — %d\n", filename, len(diags))
+	errors, warnings := diags.Count()
+	if errors > 0 {
+		fmt.Fprintf(stderr, "%s: ошибок — %d%s\n", filename, errors, warned(warnings))
 		return nil
 	}
-	_, err := fmt.Fprintf(stdout, "%s: ошибок нет\n", filename)
+	// Предупреждение не мешает компиляции, но и молчать о нём нельзя:
+	// иначе его никто никогда не прочитает.
+	_, err := fmt.Fprintf(stdout, "%s: ошибок нет%s\n", filename, warned(warnings))
 	return err
+}
+
+func warned(warnings int) string {
+	if warnings == 0 {
+		return ""
+	}
+	return fmt.Sprintf(", предупреждений — %d", warnings)
 }
 
 type options struct {
