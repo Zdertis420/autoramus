@@ -14,6 +14,7 @@ import (
 	"github.com/Zdertis420/autoramus/ramusc/internal/diag"
 	"github.com/Zdertis420/autoramus/ramusc/internal/generate"
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
+	"github.com/Zdertis420/autoramus/ramusc/internal/layout"
 	"github.com/Zdertis420/autoramus/ramusc/internal/validate"
 )
 
@@ -117,6 +118,11 @@ func command(args []string, stdout, stderr io.Writer, compile bool) int {
 // того, чего язык не требует (координат), либо сломана сама программа. Поэтому
 // код 2, а не 1, и сообщение отдельным каналом, а не объектом диагностики.
 func build(model *ir.Model, filename string, opts options, stdout, stderr io.Writer) int {
+	// Раскладка стоит между проверкой и генератором — ровно там, где её место
+	// в конвейере. Оркеструет команда, а не генератор: тот знает только про IR
+	// и о существовании раскладки не подозревает (Р16).
+	layout.Apply(model)
+
 	file, err := generate.File(model)
 	if err != nil {
 		fmt.Fprintf(stderr, "%s: %v\n", filename, err)

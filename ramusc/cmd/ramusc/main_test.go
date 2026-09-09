@@ -214,26 +214,14 @@ func TestCompileDoesNotOverwriteOnError(t *testing.T) {
 	}
 }
 
-// TestCompileRefusesWithoutLayout — без координат файла не будет.
+// Здесь стояла проверка TestCompileRefusesWithoutLayout: документ без секции
+// layout получал отказ, потому что автораскладки не было. Она появилась, и
+// причины для отказа больше нет — теперь тот же документ компилируется, что и
+// проверяет TestCompileWithoutLayout ниже.
 //
-// Автораскладки пока нет. Выдать блоки, наложенные друг на друга, значило бы
-// отдать результат, который выглядит как работа программы, а является мусором.
-func TestCompileRefusesWithoutLayout(t *testing.T) {
-	out, code, stderr := compiled(t, example("skirt.yaml"))
-
-	if code != exitInternal {
-		t.Errorf("код возврата = %d, ожидался %d\n%s", code, exitInternal, stderr)
-	}
-	if _, err := os.Stat(out); !os.IsNotExist(err) {
-		t.Errorf("файл %s создан, хотя координат нет", out)
-	}
-	if !strings.Contains(stderr, "координат") {
-		t.Errorf("в сообщении не сказано о координатах:\n%s", stderr)
-	}
-	if !strings.Contains(stderr, "Раскрой материала") {
-		t.Errorf("в сообщении не названы работы без координат:\n%s", stderr)
-	}
-}
+// Сообщение «у работ нет координат» осталось в генераторе страховкой на случай
+// его собственного дефекта: раскладка обязана заполнить всё, и если что-то
+// осталось пустым, лучше отказ, чем тихая запись блока в точку (0, 0).
 
 // TestCompileDefaultOutputName — без -o имя вывода получается из имени входа.
 func TestCompileDefaultOutputName(t *testing.T) {
@@ -253,5 +241,63 @@ func TestCompileDefaultOutputName(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "model.rsf")); err != nil {
 		t.Errorf("файл model.rsf рядом с входным не создан: %v", err)
+	}
+}
+
+// TestCompileWithoutLayout — документ без единой координаты компилируется.
+//
+// Ради этого раскладка и делалась: `skirt.yaml` — образцовый документ проекта,
+// написанный словами, без геометрии, — до неё получал отказ с кодом 2.
+func TestCompileWithoutLayout(t *testing.T) {
+	out, code, stderr := compiled(t, example("skirt.yaml"))
+
+	if code != exitOK {
+		t.Fatalf("код возврата = %d, ожидался %d\n%s", code, exitOK, stderr)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Fatalf("файл не создан: %v", err)
+	}
+	if strings.Contains(stderr, "нет координат") {
+		t.Errorf("отказ «нет координат» никуда не делся:\n%s", stderr)
+	}
+}
+
+// TestLayoutDoesNotTouchGivenGeometry — документ с полной геометрией даёт тот
+// же файл, что и до появления раскладки.
+//
+// Эталон в репозиторий не кладётся: .rsf бинарен, и держать его файлом значило
+// бы обновлять при каждой правке формата. Сравниваются две сборки одного
+// документа — этого достаточно, чтобы поймать вмешательство раскладки: она
+// либо не трогает заданное, либо трогает, и тогда координаты «поплывут»
+// относительно исходной модели, что видно по dump.
+func TestLayoutDoesNotTouchGivenGeometry(t *testing.T) {
+	document := decompiledYubka(t)
+
+	first, code, stderr := compiled(t, document)
+	if code != exitOK {
+		t.Fatalf("код возврата = %d\n%s", code, stderr)
+	}
+	second, code, stderr := compiled(t, document)
+	if code != exitOK {
+		t.Fatalf("код возврата = %d\n%s", code, stderr)
+	}
+
+	a, err := os.ReadFile(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(second)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(a, b) {
+		t.Errorf("две сборки одного документа разошлись: %d и %d байт", len(a), len(b))
+	}
+
+	// Координаты в собранном файле обязаны совпасть с теми, что стоят в
+	// исходной модели: раскладке в документе с полной геометрией делать нечего.
+	_, dumped, _ := exec(t, "dump", first)
+	if !strings.Contains(dumped, "(288.0, 147.0, 186.0, 144.0)") {
+		t.Errorf("геометрия корневой работы не та, что в исходной модели:\n%s", dumped)
 	}
 }
