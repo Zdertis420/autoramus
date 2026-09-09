@@ -30,21 +30,40 @@ var printer = message.NewPrinter(language.English)
 // наведённых бессмысленно. По той же причине смысловые проверки не видят
 // документа с неверными типами полей — они вправе считать форму верной.
 func Source(src []byte) (diag.List, error) {
+	_, diags, err := Build(src)
+	return diags, err
+}
+
+// Build — то же самое плюс построенная модель.
+//
+// Нужен компиляции: генератору требуется IR, а разбирать документ второй раз
+// нельзя — получилось бы два прохода, которые однажды разойдутся. Отдельный
+// вход, а не изменение Source: тот вызывается в четырёх местах, и менять его
+// подпись ради одной новой ветки незачем.
+//
+// Модель возвращается только тогда, когда её построили: на синтаксической
+// ошибке и на ошибке схемы строить нечего, и вернётся nil. Проверять надо
+// диагностику, а не модель.
+func Build(src []byte) (*ir.Model, diag.List, error) {
 	root, diags := syntax.Load(src)
 	if diags.HasErrors() {
 		diags.Sort()
-		return diags, nil
+		return nil, diags, nil
 	}
 	schemaDiags, err := Document(root)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	diags = append(diags, schemaDiags...)
-	if !diags.HasErrors() {
-		diags = append(diags, Semantic(ir.Build(root))...)
+	if diags.HasErrors() {
+		diags.Sort()
+		return nil, diags, nil
 	}
+
+	model := ir.Build(root)
+	diags = append(diags, Semantic(model)...)
 	diags.Sort()
-	return diags, nil
+	return model, diags, nil
 }
 
 // Document проверяет документ по схеме модели.

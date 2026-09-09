@@ -226,6 +226,20 @@ func (m *Model) findModel(qualifiers *Table) error {
 	return nil
 }
 
+// Attribute отдаёт идентификатор системного атрибута по имени, например
+// F_BOUNDS. Второе значение — нашёлся ли он вообще.
+//
+// Открыто наружу ради генератора: номера атрибутов свои в каждом файле, и
+// искать их надо по имени. Заводить второй такой поиск рядом значило бы
+// держать одно знание в двух местах.
+func (m *Model) Attribute(name string) (int64, bool) {
+	raw, ok := m.attributes[name]
+	if !ok {
+		return -1, false
+	}
+	return parseID(raw), true
+}
+
 // QualifierName отдаёт имя квалификатора работ — им же названа модель в дереве.
 func (m *Model) QualifierName() string {
 	qualifiers, err := m.File.Table("qualifiers")

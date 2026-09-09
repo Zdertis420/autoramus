@@ -1,10 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
 )
 
 // TestDecompileGolden держит канонический вывод неизменным: по Р14 он служит
@@ -160,12 +163,66 @@ func TestRefusalWritesNothing(t *testing.T) {
 	}
 }
 
+// Потеря и отказ — два разных канала, и путать их нельзя: цена ошибки —
+// молчаливая потеря обратно.
+//
+// Проверять этот канал стало не на чем. Прежде обе проверки ниже шли по
+// «ФормированиюТП»: он печатался с кодом 0 и перечнем потерь. С Р18 такие
+// модели отвергаются, и ни один настоящий файл из перечня непустых потерь
+// больше не даёт — у «Изготовления юбки» люк уносит всё, остальные три
+// отвергаются. Путь при этом живой и нужен: он страхует от потерь, которых мы
+// ещё не видели, а дохлым он быть не должен.
+//
+// Поэтому случай собирается вручную: у сектора остаётся ссылка на поток, но
+// сам поток помечен удалённым. Отказа это не даёт — строка F_SECTOR_STREAM на
+// месте, — а сектор в документ не попадает, и его содержимое честно уходит в
+// потери. В файлах Ramus так выглядит стрелка, чей поток удалили.
+
+// modelWithLoss собирает файл, дающий непустой перечень потерь без отказа,
+// и отдаёт путь к нему.
+func modelWithLoss(t *testing.T) string {
+	t.Helper()
+
+	file, err := rsf.Open(rsfExample("ИзготовлениеЮбки.rsf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := rsf.NewModel(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	streams := m.Streams()
+	if len(streams) == 0 {
+		t.Fatal("в модели нет потоков, случай не собрать")
+	}
+
+	elements, err := file.Table("elements")
+	if err != nil {
+		t.Fatal(err)
+	}
+	row, ok := elements.First(rsf.Eq("ELEMENT_ID", fmt.Sprint(streams[0].ID)))
+	if !ok {
+		t.Fatalf("элемента потока %d нет в таблице", streams[0].ID)
+	}
+	// Ноль в REMOVED_BRANCH_ID — пометка «удалён»: элемент остаётся в файле,
+	// но живым уже не считается.
+	if err := elements.Set(row, "REMOVED_BRANCH_ID", rsf.Text("0")); err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "loss.rsf")
+	if err := file.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
 // TestLossWarningDoesNotBlock — потеря не отказ: вывод печатается целиком,
 // перечень идёт в поток ошибок и в шапку, код возврата нулевой. С автором,
 // у которого есть перенесённая модель без части оформления, работать можно;
 // блокировать его нечего.
 func TestLossWarningDoesNotBlock(t *testing.T) {
-	code, stdout, stderr := exec(t, "decompile", example("ФормированиеТП.rsf"))
+	code, stdout, stderr := exec(t, "decompile", modelWithLoss(t))
 
 	if code != exitOK {
 		t.Errorf("код возврата = %d, ожидался %d\n%s", code, exitOK, stderr)
@@ -184,13 +241,56 @@ func TestLossWarningDoesNotBlock(t *testing.T) {
 // TestLossWarningNotInJSON — комментариев в JSON нет (Р10), поэтому там
 // перечень остаётся только в потоке ошибок.
 func TestLossWarningNotInJSON(t *testing.T) {
-	_, stdout, stderr := exec(t, "decompile", example("ФормированиеТП.rsf"), "--json")
+	_, stdout, stderr := exec(t, "decompile", modelWithLoss(t), "--json")
 
 	if strings.Contains(stdout, "Перенесено не всё") {
 		t.Error("перечень потерь попал в JSON, где комментариев не бывает")
 	}
 	if !strings.Contains(stderr, "перенесено не всё") {
 		t.Errorf("в потоке ошибок нет перечня потерь:\n%s", stderr)
+	}
+}
+
+// TestUnnamedArrowRefused — стрелка без имени языком не выражается, и файл
+// отвергается целиком: пустой вывод, код 2, места названы именами работ.
+// Прежде эти же секторы молча выпадали из документа, а автор видел о них лишь
+// строку вида «F_FUNCTION_SECTOR (сектор): OTHER_ELEMENT — 9».
+func TestUnnamedArrowRefused(t *testing.T) {
+	code, stdout, stderr := exec(t, "decompile", example("тест.rsf"))
+
+	if code != exitInternal {
+		t.Errorf("код возврата = %d, ожидался %d\n%s", code, exitInternal, stderr)
+	}
+	if stdout != "" {
+		t.Errorf("при отказе напечатан документ:\n%s", stdout)
+	}
+	if !strings.Contains(stderr, "файл не выражается входным языком полностью") {
+		t.Errorf("в потоке ошибок нет отказа:\n%s", stderr)
+	}
+	// Три безымянные стрелки — три строки. Если бы считались сегменты, строк
+	// было бы девять, и автор пошёл бы искать девять мест вместо трёх.
+	if n := strings.Count(stderr, "стрелок без имени"); n != 3 {
+		t.Errorf("строк про стрелки без имени %d, ожидалось 3:\n%s", n, stderr)
+	}
+	if !strings.Contains(stderr, "«под работа 1» (выход) → «под работа 2» (вход)") {
+		t.Errorf("места не названы именами работ:\n%s", stderr)
+	}
+	if !strings.Contains(stderr, "ничего не записано") {
+		t.Errorf("не сказано, что вывода нет:\n%s", stderr)
+	}
+}
+
+// TestUnnamedArrowRefusalWritesNothing — при отказе файл не создаётся.
+// Частичный документ автор примет за полный и построит на нём работу.
+func TestUnnamedArrowRefusalWritesNothing(t *testing.T) {
+	out := filepath.Join(t.TempDir(), "out.yaml")
+
+	code, _, stderr := exec(t, "decompile", example("тест.rsf"), "-o", out)
+	if code != exitInternal {
+		t.Fatalf("код возврата = %d, ожидался %d\n%s", code, exitInternal, stderr)
+	}
+	if _, err := os.Stat(out); !os.IsNotExist(err) {
+		t.Errorf("при отказе создан файл %s", out)
 	}
 }
 

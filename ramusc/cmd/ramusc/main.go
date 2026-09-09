@@ -7,10 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"strings"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/diag"
+	"github.com/Zdertis420/autoramus/ramusc/internal/generate"
+	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 	"github.com/Zdertis420/autoramus/ramusc/internal/validate"
 )
 
@@ -82,24 +85,77 @@ func command(args []string, stdout, stderr io.Writer, compile bool) int {
 		return exitInternal
 	}
 
-	diags, internal := validate.Source(src)
+	model, diags, internal := validate.Build(src)
 	if internal != nil {
 		fmt.Fprintf(stderr, "внутренняя ошибка ramusc: %v\n", internal)
 		fmt.Fprintf(stderr, "сообщите об этом: %s\n", bugTracker)
 		return exitInternal
 	}
 
-	if err := report(stdout, stderr, filename, diags, opts.jsonOut); err != nil {
+	// Документ печатается в stdout только при -o -, и мешать его с диагностикой
+	// нельзя: .rsf бинарен. В этом случае всё сообщаемое уходит в поток ошибок.
+	reportTo := stdout
+	if compile && opts.output == "-" {
+		reportTo = stderr
+	}
+	if err := report(reportTo, stderr, filename, diags, opts.jsonOut); err != nil {
 		fmt.Fprintf(stderr, "ramusc: %v\n", err)
 		return exitInternal
 	}
 	if diags.HasErrors() {
 		return exitInvalid
 	}
+	if !compile {
+		return exitOK
+	}
+	return build(model, filename, opts, stdout, stderr)
+}
 
-	if compile {
-		// Честнее сказать прямо, чем изобразить успешную сборку.
-		fmt.Fprintln(stderr, "ramusc: разбор и проверка пройдены, но генератор .rsf ещё не подключён")
+// build собирает .rsf и записывает его.
+//
+// Отказ генератора — не ошибка автора: документ проверку прошёл, а не хватает
+// того, чего язык не требует (координат), либо сломана сама программа. Поэтому
+// код 2, а не 1, и сообщение отдельным каналом, а не объектом диагностики.
+func build(model *ir.Model, filename string, opts options, stdout, stderr io.Writer) int {
+	file, err := generate.File(model)
+	if err != nil {
+		fmt.Fprintf(stderr, "%s: %v\n", filename, err)
+		fmt.Fprintln(stderr, "ничего не записано")
+		return exitInternal
+	}
+	data, err := file.Bytes()
+	if err != nil {
+		fmt.Fprintf(stderr, "внутренняя ошибка ramusc: %v\n", err)
+		fmt.Fprintf(stderr, "сообщите об этом: %s\n", bugTracker)
+		return exitInternal
+	}
+
+	// Связи в файл пока не пишутся, и файл поэтому заведомо неполон. Молчать
+	// об этом нельзя: автор примет блоки без стрелок за готовую модель.
+	//
+	// Печатается после сборки, а не до: при отказе файла не будет вовсе, и
+	// обещать автору его содержимое было бы враньём.
+	if n := len(model.Flows); n > 0 {
+		fmt.Fprintf(stderr, "%s: связи в .rsf пока не записываются\n", filename)
+		fmt.Fprintf(stderr, "  объявлено потоков: %d\n", n)
+		fmt.Fprintln(stderr, "  в файле будут только блоки работ; стрелки появятся следующей версией")
+	}
+
+	// Файл создаётся только теперь, когда весь ZIP собран в память:
+	// наполовину записанного .rsf не остаётся ни при какой ошибке.
+	if opts.output == "-" {
+		if _, err := stdout.Write(data); err != nil {
+			fmt.Fprintf(stderr, "ramusc: %v\n", err)
+			return exitInternal
+		}
+		return exitOK
+	}
+	out := opts.output
+	if out == "" {
+		out = strings.TrimSuffix(filename, filepath.Ext(filename)) + ".rsf"
+	}
+	if err := os.WriteFile(out, data, 0o644); err != nil {
+		fmt.Fprintf(stderr, "ramusc: %v\n", err)
 		return exitInternal
 	}
 	return exitOK
@@ -169,7 +225,7 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `ramusc — компилятор моделей Ramus
 
 Использование:
-  ramusc <файл> [-o вывод.rsf]   компиляция (генератор ещё не подключён)
+  ramusc <файл> [-o вывод.rsf]   компиляция; по умолчанию model.json -> model.rsf
   ramusc validate <файл>         проверка, человекочитаемый вывод
   ramusc validate <файл> --json  проверка, машинный вывод для GUI
   ramusc dump <файл.rsf>         показать модель из готового файла Ramus
