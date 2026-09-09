@@ -1,0 +1,18 @@
+[
+  {
+    "severity": "error",
+    "code": "no_root",
+    "message": "нет ни одной работы без of: контекстную диаграмму не из чего построить",
+    "path": "/model",
+    "line": 2,
+    "column": 8
+  },
+  {
+    "severity": "error",
+    "code": "hierarchy_cycle",
+    "message": "цикл в иерархии работ: «Раскрой» → «Пошив» → «Раскрой»",
+    "path": "/functions/0/of",
+    "line": 7,
+    "column": 9
+  }
+]

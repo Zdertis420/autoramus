@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_enum",
+    "message": "допустимы только значения: «idef0», «dfd»",
+    "path": "/functions/0/kind",
+    "line": 4,
+    "column": 42
+  }
+]

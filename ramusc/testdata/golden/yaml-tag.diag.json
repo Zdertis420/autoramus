@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "yaml_tag",
+    "message": "тег YAML «!!binary» не поддерживается",
+    "path": "",
+    "line": 2,
+    "column": 8
+  }
+]

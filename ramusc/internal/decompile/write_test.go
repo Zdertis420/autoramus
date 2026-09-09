@@ -2,6 +2,7 @@ package decompile_test
 
 import (
 	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
@@ -185,14 +186,110 @@ func TestYAMLQuoting(t *testing.T) {
 	}
 }
 
-// TestUnprintableSectionsAreRefused — классификаторы и raw писатель пока не
-// умеет, и молчать об этом нельзя: потерянные данные хуже отказа.
-func TestUnprintableSectionsAreRefused(t *testing.T) {
+// TestClassifiersArePrinted — классификаторы больше не отвергаются, а
+// печатаются. Отказ на них был недостижим из команды: разбор их не читал,
+// поле IR оставалось пустым, и проверка не срабатывала никогда. Обнаружение
+// непереносимого переехало в rsf.Unsupported, который смотрит в файл.
+func TestClassifiersArePrinted(t *testing.T) {
 	m := &ir.Model{
-		Name:        ir.Ref{Name: "Модель", Raw: "Модель", Path: "/model"},
-		Classifiers: []*ir.Classifier{{Name: ir.Ref{Name: "Документы", Raw: "Документы"}}},
+		Name: ir.Ref{Name: "Модель", Raw: "Модель", Path: "/model"},
+		Classifiers: []*ir.Classifier{{
+			Name: ir.Ref{Name: "Документы", Raw: "Документы"},
+			Columns: []*ir.Column{{
+				Name: ir.Ref{Name: "Номер", Raw: "Номер"},
+				Type: ir.Ref{Name: "text", Raw: "text"},
+			}},
+			Rows: []*ir.Row{{Cells: []*ir.Cell{{
+				Column: ir.Ref{Name: "Номер", Raw: "Номер"},
+				Value:  "17-А",
+			}}}},
+		}},
 	}
-	if err := decompile.WriteYAML(&bytes.Buffer{}, m, decompile.Options{}); err == nil {
-		t.Error("классификаторы должны приводить к ошибке, а не теряться")
+
+	var buf bytes.Buffer
+	if err := decompile.WriteYAML(&buf, m, decompile.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"classifiers:", "Документы", "Номер", "text", "17-А"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("в выводе нет %q:\n%s", want, buf.String())
+		}
+	}
+}
+
+// TestRawIsPrinted — люк печатается, а не отвергается. Раньше писатель на нём
+// отказывал, и потому люк не использовался ни в одну сторону: цвета, статусы и
+// свойства подписей терялись молча.
+func TestRawIsPrinted(t *testing.T) {
+	m := &ir.Model{
+		Name: ir.Ref{Name: "Модель", Raw: "Модель", Path: "/model"},
+		Raw: []ir.RawAttr{{
+			Attribute: ir.Ref{Name: "F_PROJECT_PREFERENCES", Raw: "F_PROJECT_PREFERENCES"},
+			Value:     map[string]any{"DEFINITION": "A4", "MODEL_LETTER": "3"},
+		}},
+		Functions: []*ir.Function{{
+			Name: ir.Ref{Name: "Работа", Raw: "Работа"},
+			Raw: []ir.RawAttr{{
+				Attribute: ir.Ref{Name: "F_STATUS", Raw: "F_STATUS"},
+				Value:     json.Number("0"),
+			}},
+		}},
+	}
+
+	var buf bytes.Buffer
+	if err := decompile.WriteYAML(&buf, m, decompile.Options{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"raw:", "F_STATUS", "F_PROJECT_PREFERENCES",
+		"{DEFINITION: A4, MODEL_LETTER: '3'}",
+	} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("в выводе нет %q:\n%s", want, buf.String())
+		}
+	}
+}
+
+// TestFlowIndicatorsAreQuoted — индикаторы потокового стиля значимы в любой
+// позиции, а не только в начале скаляра. Списки ICOM и концы сегментов
+// печатаются как [a, b] и {k: v}, поэтому запятая внутри имени без кавычек
+// разделит его надвое, и документ опишет не ту модель, из которой получен.
+// Ловится это только на модели с такими именами: «Оформление, нормконтроль
+// и утверждение пояснительной записки» в ФормированиеТП.rsf.
+func TestFlowIndicatorsAreQuoted(t *testing.T) {
+	const comma = "Оформление, нормконтроль"
+
+	m := &ir.Model{
+		Name:  ir.Ref{Name: comma, Raw: comma, Path: "/model"},
+		Flows: []ir.Ref{{Name: "Ткань [рулон]", Raw: "Ткань [рулон]"}},
+		Functions: []*ir.Function{{
+			Name: ir.Ref{Name: comma, Raw: comma, Path: "/functions/0/name"},
+		}},
+		Links: []*ir.Link{{
+			Flow:  ir.Ref{Name: "Ткань [рулон]", Raw: "Ткань [рулон]"},
+			To:    ir.Ref{Name: comma, Raw: comma, Path: "/functions/0/name"},
+			Side:  ir.SideIn,
+			Sugar: true,
+		}},
+	}
+
+	var buf bytes.Buffer
+	if err := decompile.WriteYAML(&buf, m, decompile.Options{}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Проверка по существу: прочитать напечатанное и убедиться, что имена
+	// уцелели. Сравнивать с образцом строки бессмысленно — важно, что
+	// разборщик увидит ровно то, что мы записали.
+	got := reparse(t, buf.String())
+
+	if len(got.Flows) != 1 || got.Flows[0].Raw != "Ткань [рулон]" {
+		t.Errorf("потоки после обратного разбора: %+v\n%s", got.Flows, buf.String())
+	}
+	if len(got.Functions) != 1 || got.Functions[0].Name.Raw != comma {
+		t.Errorf("работы после обратного разбора: %+v\n%s", got.Functions, buf.String())
+	}
+	if got.Name.Raw != comma {
+		t.Errorf("имя модели = %q, было %q", got.Name.Raw, comma)
 	}
 }

@@ -29,8 +29,7 @@ func parse(t *testing.T, xml string) *rsf.Table {
 }
 
 // TestEncodeIsByteExact — то, что разобрано, должно записаться обратно
-// посимвольно. Отдельно проверяются случаи, которых в реальном файле нет:
-// экранирование и пустая таблица.
+// посимвольно.
 func TestEncodeIsByteExact(t *testing.T) {
 	tests := []struct {
 		name string
@@ -49,8 +48,16 @@ func TestEncodeIsByteExact(t *testing.T) {
 			`<data><row><f id="0">1</f><f id="1"/></row><row><f id="0">2</f></row></data>`,
 		},
 		{
-			"экранирование",
-			`<data><row><f id="0">1</f><f id="1">A &amp; B &lt;c&gt; &quot;d&quot;</f></row></data>`,
+			// Кавычка в тексте элемента ничего не ограничивает, и Ramus пишет
+			// её как есть — видно на ФормированиеТП.rsf, где так записано имя
+			// «Раздел "основные техничиеские решения"». Раньше здесь стоял
+			// придуманный образец с &quot;, и он расходился с настоящим файлом.
+			//
+			// Различить «"» и «&quot;» после разбора невозможно: оба дают один
+			// символ. Выбор в пользу буквальной кавычки опирается на то, как
+			// пишет сам Ramus.
+			"экранирование текста: только &, < и >",
+			`<data><row><f id="0">1</f><f id="1">A &amp; B &lt;c&gt; "d"</f></row></data>`,
 		},
 	}
 
@@ -125,5 +132,45 @@ func TestPropertiesIsNotATable(t *testing.T) {
 	}
 	if _, _, ok := rsf.ParseTable("data/битый.xml", []byte("<table><не закрыт>")); ok {
 		t.Error("битый XML не должен считаться таблицей")
+	}
+}
+
+// TestCRSurvivesRoundTrip — XML требует от разборщика нормализовать переводы
+// строк, и «\r\n» в тексте значения превращается в «\n». Ramus пишет такие
+// значения как есть, поэтому без обходного пути round-trip перестаёт быть
+// побайтовым — что и обнаружилось на ФормированиеТП.rsf.
+func TestCRSurvivesRoundTrip(t *testing.T) {
+	const source = `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<table generate-from-table="t" generate-time="x" prefix="ramus_">` +
+		`<fields><field id="0" name="VALUE" type="VARCHAR"/></fields>` +
+		"<data><row><f id=\"0\">первая\r\nвторая</f></row></data></table>"
+
+	table, generateTime, ok := rsf.ParseTable("data/t.xml", []byte(source))
+	if !ok {
+		t.Fatal("таблица не разобралась")
+	}
+	if got := table.Str(table.Rows[0], "VALUE"); got != "первая\r\nвторая" {
+		t.Errorf("значение %q, ожидалось с возвратом каретки", got)
+	}
+	if got := string(table.Encode(generateTime)); got != source {
+		t.Errorf("запись разошлась с оригиналом:\n  было:     %q\n  получено: %q", source, got)
+	}
+}
+
+// TestQuotesInTextAreNotEscaped — двойная кавычка в тексте элемента ничего не
+// ограничивает, и Ramus пишет её как есть. Экранирование разошлось бы с
+// оригиналом на каждом имени вида «Раздел "основные технические решения"».
+func TestQuotesInTextAreNotEscaped(t *testing.T) {
+	const source = `<?xml version="1.0" encoding="UTF-8"?>` +
+		`<table generate-from-table="t" generate-time="x" prefix="ramus_">` +
+		`<fields><field id="0" name="VALUE" type="VARCHAR"/></fields>` +
+		`<data><row><f id="0">Раздел "основные решения"</f></row></data></table>`
+
+	table, generateTime, ok := rsf.ParseTable("data/t.xml", []byte(source))
+	if !ok {
+		t.Fatal("таблица не разобралась")
+	}
+	if got := string(table.Encode(generateTime)); got != source {
+		t.Errorf("запись разошлась с оригиналом:\n  было:     %q\n  получено: %q", source, got)
 	}
 }

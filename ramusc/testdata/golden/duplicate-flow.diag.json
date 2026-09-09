@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_flow",
+    "message": "поток «Ткань» уже объявлен в строке 4",
+    "path": "/flows/1",
+    "line": 4,
+    "column": 16
+  }
+]

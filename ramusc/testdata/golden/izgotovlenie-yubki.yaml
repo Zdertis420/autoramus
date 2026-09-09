@@ -18,6 +18,23 @@ functions:
     mechanism: [Швея-закройшица, Раскройное оборудование, Выкройка,
                 Швейная машинка, Швеёно-вышивальгая машинка]
     out:       [Юбка]
+    raw:
+      - attribute: F_BACKGROUND
+        value: -1
+      - attribute: F_CREATE_DATE
+        value: '9/4/26 10:23 AM'
+      - attribute: F_FONT
+        value: {NAME: Dialog, SIZE: 10, STYLE: 0}
+      - attribute: F_FOREGROUND
+        value: -16777216
+      - attribute: F_REV_DATE
+        value: '9/5/26 6:30 PM'
+      - attribute: F_STATUS
+        value: {OTHER_NAME: '', TYPE: 0}
+      - attribute: F_SYSTEM_REV_DATE
+        value: '9/5/26 6:30 PM'
+      - attribute: F_VISUAL_DATA
+        value: 8280808080808080
 
   - name: Раскрой материала
     of: Изготовление юбки
@@ -25,6 +42,19 @@ functions:
     control:   [Правила изготовления швейного изделия]
     mechanism: [Раскройное оборудование, Выкройка, Швея-закройшица]
     out:       [Детали изделия]
+    raw:
+      - attribute: F_BACKGROUND
+        value: -1
+      - attribute: F_DECOMPOSITION_TYPE
+        value: -1
+      - attribute: F_FONT
+        value: {NAME: Dialog, SIZE: 10, STYLE: 0}
+      - attribute: F_FOREGROUND
+        value: -16777216
+      - attribute: F_STATUS
+        value: {OTHER_NAME: '', TYPE: 0}
+      - attribute: F_VISUAL_DATA
+        value: ''
 
   - name: Сшивание деталей
     of: Изготовление юбки
@@ -32,6 +62,19 @@ functions:
     control:   [Правила изготовления швейного изделия]
     mechanism: [Швейная машинка, Швея-закройшица]
     out:       [Собранное изделие]
+    raw:
+      - attribute: F_BACKGROUND
+        value: -1
+      - attribute: F_DECOMPOSITION_TYPE
+        value: -1
+      - attribute: F_FONT
+        value: {NAME: Dialog, SIZE: 10, STYLE: 0}
+      - attribute: F_FOREGROUND
+        value: -16777216
+      - attribute: F_STATUS
+        value: {OTHER_NAME: '', TYPE: 0}
+      - attribute: F_VISUAL_DATA
+        value: ''
 
   - name: Добавление фурнитуры
     of: Изготовление юбки
@@ -39,6 +82,32 @@ functions:
     control:   [Правила изготовления швейного изделия]
     mechanism: [Швея-закройшица, Швеёно-вышивальгая машинка]
     out:       [Юбка]
+    raw:
+      - attribute: F_BACKGROUND
+        value: -1
+      - attribute: F_DECOMPOSITION_TYPE
+        value: -1
+      - attribute: F_FONT
+        value: {NAME: Dialog, SIZE: 10, STYLE: 0}
+      - attribute: F_FOREGROUND
+        value: -16777216
+      - attribute: F_STATUS
+        value: {OTHER_NAME: '', TYPE: 0}
+      - attribute: F_VISUAL_DATA
+        value: ''
+raw:
+  - attribute: F_CREATE_DATE
+    value: '9/4/26 12:00 AM'
+  - attribute: F_PROJECT_PREFERENCES
+    value: {CHANGE_DATE: '9/4/26 10:23 AM', CREATE_DATE: '9/4/26 10:23 AM', DEFINITION: '', MODEL_LETTER: '', PROJECT_NAME: новый2, TERM_ATTRIBUTE: 55, USED_AT: ''}
+  - attribute: F_REV_DATE
+    value: '9/5/26 6:29 PM'
+  - attribute: F_STATUS
+    value: {OTHER_NAME: '', TYPE: 0}
+  - attribute: F_SYSTEM_REV_DATE
+    value: '9/5/26 6:29 PM'
+  - attribute: F_VISUAL_DATA
+    value: 8280808080808080
 
 layout:
   functions:
@@ -72,16 +141,31 @@ layout:
           from: {border: left}
           to:   {function: Раскрой материала, side: in}
           points: [[7, 126], [90, 126]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 21.0, TEXT_X: 25.125, TEXT_Y: 110.625, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: left}
           to:   {function: Изготовление юбки, side: in}
           points: [[7, 195], [288, 195]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 21.0, TEXT_X: 147.5, TEXT_Y: 203.125, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Раскрой материала
           from: {border: left}
           points: [[7, 100], [37, 100]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Фурнитура
       segments:
@@ -89,16 +173,31 @@ layout:
           from: {border: left}
           to:   {function: Добавление фурнитуры, side: in}
           points: [[7, 344.375], [624, 344.375]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 38.0, TEXT_X: 17.625, TEXT_Y: 330.875, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: left}
           to:   {function: Изготовление юбки, side: in}
           points: [[7, 243], [288, 243]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 38.0, TEXT_X: 147.5, TEXT_Y: 242.5, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Добавление фурнитуры
           from: {border: left}
           points: [[7, 344.375], [37, 344.375]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Правила изготовления швейного изделия
       segments:
@@ -106,45 +205,90 @@ layout:
           from: {border: top}
           to:   {node: n1}
           points: [[134.81617647058823, 7], [134.81617647058823, 55.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 39.203125, TEXT_WIDTH: 50.0, TEXT_X: 79.375, TEXT_Y: 13.6484375, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: top}
           to:   {function: Изготовление юбки, side: control}
           points: [[381, 7], [381, 147]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 83.0, TEXT_X: 386.875, TEXT_Y: 68.0234375, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Раскрой материала
           from: {border: top}
           points: [[123.125, 7], [123.125, 37]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n2}
           to:   {function: Раскрой материала, side: control}
           points: [[134.81617647058823, 70.625], [134.81617647058823, 102]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Сшивание деталей
           from: {border: top}
           points: [[411.25, 7], [411.25, 37]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n2}
           to:   {function: Сшивание деталей, side: control}
           points: [[134.81617647058823, 70.625], [411.25, 70.625],
                    [411.25, 201]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n1}
           to:   {node: n2}
           points: [[134.81617647058823, 55.625], [134.81617647058823, 70.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Добавление фурнитуры
           from: {border: top}
           points: [[690, 7], [690, 37]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n1}
           to:   {function: Добавление фурнитуры, side: control}
           points: [[134.81617647058823, 55.625], [690, 55.625], [690, 288]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Швея-закройшица
       segments:
@@ -152,45 +296,90 @@ layout:
           from: {border: bottom}
           to:   {node: n1}
           points: [[203.6470588235294, 437], [203.6470588235294, 386.25]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 43.0, TEXT_X: 205.625, TEXT_Y: 418.34765625, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: bottom}
           to:   {function: Изготовление юбки, side: mechanism}
           points: [[319, 437], [319, 291]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 43.0, TEXT_X: 279.875, TEXT_Y: 326.173828125, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Раскрой материала
           from: {border: bottom}
           points: [[164.375, 437], [164.375, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n2}
           to:   {function: Раскрой материала, side: mechanism}
           points: [[203.6470588235294, 373.125], [203.6470588235294, 174]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Сшивание деталей
           from: {border: bottom}
           points: [[424.375, 437], [424.375, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n2}
           to:   {function: Сшивание деталей, side: mechanism}
           points: [[203.6470588235294, 373.125], [424.375, 373.125],
                    [424.375, 276]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n1}
           to:   {node: n2}
           points: [[203.6470588235294, 386.25], [203.6470588235294, 373.125]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Добавление фурнитуры
           from: {border: bottom}
           points: [[672.5, 437], [672.5, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {node: n1}
           to:   {function: Добавление фурнитуры, side: mechanism}
           points: [[203.6470588235294, 386.25], [672.5, 386.25], [672.5, 372]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Юбка
       segments:
@@ -198,48 +387,93 @@ layout:
           from: {function: Добавление фурнитуры, side: out}
           to:   {border: right}
           points: [[732, 336], [793, 336]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 21.0, TEXT_X: 757.5, TEXT_Y: 338.75, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {function: Изготовление юбки, side: out}
           to:   {border: right}
           points: [[474, 219], [793, 219]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 21.0, TEXT_X: 633.5, TEXT_Y: 220.0, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Добавление фурнитуры
           to:   {border: right}
           points: [[763, 330.625], [793, 330.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Детали изделия
       segments:
         - on: Раскрой материала
           to:   {border: right}
           points: [[763, 141.25], [793, 141.25]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Сшивание деталей
           from: {border: left}
           points: [[7, 235.625], [37, 235.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {function: Раскрой материала, side: out}
           to:   {function: Сшивание деталей, side: in}
           points: [[228, 141.25], [280.5, 141.25], [280.5, 235.625],
                    [369, 235.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 58.0, TEXT_X: 284.875, TEXT_Y: 161.5625, TILDA_POS: 0.0, TRANSPARENT: 1}
 
     - flow: Собранное изделие
       segments:
         - on: Сшивание деталей
           to:   {border: right}
           points: [[763, 240.625], [793, 240.625]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Добавление фурнитуры
           from: {border: left}
           points: [[7, 327.5], [37, 327.5]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
         - on: Изготовление юбки
           from: {function: Сшивание деталей, side: out}
           to:   {function: Добавление фурнитуры, side: in}
           points: [[471, 240.625], [547.5, 240.625], [547.5, 327.5],
                    [624, 327.5]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 41.0, TEXT_X: 552.5, TEXT_Y: 282.1875, TILDA_POS: 0.0, TRANSPARENT: 1}
 
     - flow: Швейная машинка
       segments:
@@ -247,16 +481,31 @@ layout:
           from: {border: bottom}
           to:   {function: Сшивание деталей, side: mechanism}
           points: [[440, 437], [440, 276]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 33.0, TEXT_X: 445.625, TEXT_Y: 417.625, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: bottom}
           to:   {function: Изготовление юбки, side: mechanism}
           points: [[412, 437], [412, 291]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 33.0, TEXT_X: 401.875, TEXT_Y: 407.75, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Сшивание деталей
           from: {border: bottom}
           points: [[440, 437], [440, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Раскройное оборудование
       segments:
@@ -264,16 +513,31 @@ layout:
           from: {border: bottom}
           to:   {function: Раскрой материала, side: mechanism}
           points: [[130.58823529411765, 437], [130.58823529411765, 174]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 50.0, TEXT_X: 133.875, TEXT_Y: 417.296875, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: bottom}
           to:   {function: Изготовление юбки, side: mechanism}
           points: [[350, 437], [350, 291]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 19.6015625, TEXT_WIDTH: 50.0, TEXT_X: 309.5, TEXT_Y: 356.2734375, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Раскрой материала
           from: {border: bottom}
           points: [[151.25, 437], [151.25, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Выкройка
       segments:
@@ -281,16 +545,31 @@ layout:
           from: {border: bottom}
           to:   {function: Раскрой материала, side: mechanism}
           points: [[110.29411764705883, 437], [110.29411764705883, 174]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 35.0, TEXT_X: 71.25, TEXT_Y: 427.625, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: bottom}
           to:   {function: Изготовление юбки, side: mechanism}
           points: [[381, 437], [381, 291]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 35.0, TEXT_X: 363.75, TEXT_Y: 386.5, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Раскрой материала
           from: {border: bottom}
           points: [[111.25, 437], [111.25, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}
 
     - flow: Швеёно-вышивальгая машинка
       segments:
@@ -298,13 +577,28 @@ layout:
           from: {border: bottom}
           to:   {function: Добавление фурнитуры, side: mechanism}
           points: [[700.625, 437], [700.625, 372]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 9.80078125, TEXT_WIDTH: 112.0, TEXT_X: 585.625, TEXT_Y: 422.921875, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Изготовление юбки
           context: true
           from: {border: bottom}
           to:   {function: Изготовление юбки, side: mechanism}
           points: [[443, 437], [443, 291]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 1, SHOW_TILDA: 0, TEXT_HIEGHT: 39.203125, TEXT_WIDTH: 40.0, TEXT_X: 450.0, TEXT_Y: 354.3984375, TILDA_POS: 0.0, TRANSPARENT: 1}
 
         - on: Добавление фурнитуры
           from: {border: bottom}
           points: [[700.625, 437], [700.625, 407]]
+          raw:
+            - attribute: F_SECTOR_ATTRIBUTE
+              value: {ALTERNATIVE_TEXT: '', CREATE_POS: 0.0, CREATE_STATE: -1, SHOW_TEXT: 1, TEXT_ALIGMENT: 0, VISUAL_ATTRIBUTES: 8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080}
+            - attribute: F_SECTOR_PROPERTIES
+              value: {SHOW_TEXT: 0, SHOW_TILDA: 0, TEXT_HIEGHT: 0.0, TEXT_WIDTH: 0.0, TEXT_X: 0.0, TEXT_Y: 0.0, TILDA_POS: 0.0, TRANSPARENT: 0}

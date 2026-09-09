@@ -44,17 +44,39 @@ func decompileCommand(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "%s: %v\n", filename, err)
 		return exitInvalid
 	}
-	model, err := decompile.Model(source)
+	// Отказ решается до печати: неполный результат не выдаётся ни при каких
+	// условиях, иначе автор примет его за полный и построит на нём работу.
+	if found := source.Unsupported(); len(found) > 0 {
+		fmt.Fprintf(stderr, "%s: файл не выражается входным языком полностью\n", filename)
+		for _, u := range found {
+			fmt.Fprintf(stderr, "  %s\n", u)
+		}
+		fmt.Fprintln(stderr, "ничего не записано")
+		return exitInternal
+	}
+
+	model, lost, err := decompile.ModelWithReport(source)
 	if err != nil {
 		fmt.Fprintf(stderr, "%s: %v\n", filename, err)
 		return exitInvalid
+	}
+
+	// Потеря — не отказ. Отказ выше остаётся за содержимым, которое языком не
+	// описывается по существу; здесь модель перенесена и работать с ней можно,
+	// просто часть оформления не доехала даже люком. Блокировать нечего, но и
+	// молчать нельзя: с молчаливых потерь всё и начиналось.
+	if len(lost) > 0 {
+		fmt.Fprintf(stderr, "%s: перенесено не всё\n", filename)
+		for _, l := range lost {
+			fmt.Fprintf(stderr, "  %s\n", l)
+		}
 	}
 
 	var out bytes.Buffer
 	if opts.jsonOut {
 		err = decompile.WriteJSON(&out, model)
 	} else {
-		err = decompile.WriteYAML(&out, model, decompile.Options{Header: header(filename, source)})
+		err = decompile.WriteYAML(&out, model, decompile.Options{Header: header(filename, source, lost)})
 	}
 	if err != nil {
 		fmt.Fprintf(stderr, "ramusc: %v\n", err)
@@ -77,8 +99,18 @@ func decompileCommand(args []string, stdout, stderr io.Writer) int {
 
 // header говорит о том, что вызовет замечания валидатора: ожидаемые
 // unused_flow не должны приниматься за поломку и «чиниться» фильтрацией flows.
-func header(filename string, source *rsf.Model) []string {
+func header(filename string, source *rsf.Model, lost []rsf.Loss) []string {
 	lines := []string{fmt.Sprintf("Декомпилировано из %s.", filename)}
+
+	// Перечень потерь повторяется в шапке: вывод часто уходит в файл по -o, и
+	// поток ошибок тогда пролетает мимо глаз, а узнать о потере автор должен
+	// именно при работе с результатом.
+	if len(lost) > 0 {
+		lines = append(lines, "Перенесено не всё, ниже — что не доехало:")
+		for _, l := range lost {
+			lines = append(lines, "  "+l.String())
+		}
+	}
 
 	if orphans := decompile.OrphanFlows(source); len(orphans) > 0 {
 		lines = append(lines,

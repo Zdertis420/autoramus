@@ -21,22 +21,39 @@ const (
 
 // Валидация по схеме. Коды повторяют ключевые слова JSON Schema, чтобы
 // сообщение и причина не расходились.
+//
+// Часть кодов помечена ниже как «схемой не используется». Такой код объявлен и
+// переводится из ошибки библиотеки, но возникнуть не может: model.schema.json
+// соответствующего ключевого слова не содержит. Удалять их не стали — тогда
+// первое же ужесточение схемы дало бы вместо внятного сообщения общее, — но и
+// требовать на них проверку нельзя: входа, на котором они срабатывают, не
+// существует. Пометку снимает тот, кто добавит ключевое слово в схему; после
+// этого проверка покрытия потребует модель (FR-008).
 const (
-	CodeSchema               Code = "schema"
-	CodeSchemaType           Code = "schema_type"
-	CodeSchemaRequired       Code = "schema_required"
-	CodeSchemaUnknownField   Code = "schema_unknown_field"
-	CodeSchemaMinItems       Code = "schema_min_items"
-	CodeSchemaMaxItems       Code = "schema_max_items"
-	CodeSchemaMinLength      Code = "schema_min_length"
-	CodeSchemaMaxLength      Code = "schema_max_length"
-	CodeSchemaPattern        Code = "schema_pattern"
-	CodeSchemaEnum           Code = "schema_enum"
-	CodeSchemaConst          Code = "schema_const"
-	CodeSchemaUniqueItems    Code = "schema_unique_items"
-	CodeSchemaMinProperties  Code = "schema_min_properties"
-	CodeSchemaMaxProperties  Code = "schema_max_properties"
-	CodeSchemaPropertyNames  Code = "schema_property_names"
+	// CodeSchema — причина не сводится к частному ключевому слову.
+	// Схемой не используется: все виды ошибок нашей схемы разобраны поимённо.
+	CodeSchema             Code = "schema"
+	CodeSchemaType         Code = "schema_type"
+	CodeSchemaRequired     Code = "schema_required"
+	CodeSchemaUnknownField Code = "schema_unknown_field"
+	CodeSchemaMinItems     Code = "schema_min_items"
+	CodeSchemaMaxItems     Code = "schema_max_items"
+	CodeSchemaMinLength    Code = "schema_min_length"
+	// Схемой не используется: ограничений maxLength в model.schema.json нет.
+	CodeSchemaMaxLength Code = "schema_max_length"
+	// Схемой не используется: образцов pattern в model.schema.json нет.
+	CodeSchemaPattern Code = "schema_pattern"
+	CodeSchemaEnum    Code = "schema_enum"
+	// Схемой не используется: ограничений const в model.schema.json нет.
+	CodeSchemaConst       Code = "schema_const"
+	CodeSchemaUniqueItems Code = "schema_unique_items"
+	// Схемой не используется: ограничений minProperties в схеме нет.
+	CodeSchemaMinProperties Code = "schema_min_properties"
+	// Схемой не используется: ограничений maxProperties в схеме нет.
+	CodeSchemaMaxProperties Code = "schema_max_properties"
+	// Схемой не используется: ограничений propertyNames в схеме нет.
+	CodeSchemaPropertyNames Code = "schema_property_names"
+	// Схемой не используется: запрещающих подсхем (false) в схеме нет.
 	CodeSchemaNotAllowedHere Code = "schema_not_allowed_here"
 )
 

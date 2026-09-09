@@ -5,14 +5,26 @@ import (
 	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/Zdertis420/autoramus/ramusc/internal/fixtures"
 	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
 )
 
-// fixture — настоящая модель Ramus. Отдельной копии в testdata нет намеренно:
-// проверять порт надо ровно на том файле, по которому писались примеры.
-const fixture = "../../../examples/ИзготовлениеЮбки.rsf"
+// fixture — модель, на которой проверяются частные случаи вроде поиска
+// таблицы: там достаточно любого настоящего файла. Проверки, которые обязаны
+// пройти на каждой модели, берут перечень из fixtures.All().
+var fixture = mainFixture()
+
+func mainFixture() string {
+	for _, m := range fixtures.All() {
+		if m.Name == "ИзготовлениеЮбки" {
+			return m.Path
+		}
+	}
+	panic("в перечне нет модели ИзготовлениеЮбки")
+}
 
 type entry struct {
 	name string
@@ -44,35 +56,42 @@ func readZip(t *testing.T, data []byte) []entry {
 // TestRoundTripIsByteExact — критерий приёмки порта: прочитать настоящий файл,
 // записать обратно и получить те же самые байты в каждой записи. Пока это
 // держится, слой таблиц ничего не теряет и не додумывает.
+//
+// Идёт по всему перечню моделей: раньше проверялся один файл, и всё, чего он
+// не использует, оставалось непроверенным.
 func TestRoundTripIsByteExact(t *testing.T) {
-	source, err := os.ReadFile(fixture)
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := readZip(t, source)
+	for _, model := range fixtures.All() {
+		t.Run(model.Name, func(t *testing.T) {
+			source, err := os.ReadFile(model.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := readZip(t, source)
 
-	f, err := rsf.Open(fixture)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rebuilt, err := f.Bytes()
-	if err != nil {
-		t.Fatal(err)
-	}
-	got := readZip(t, rebuilt)
+			f, err := rsf.Open(model.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			rebuilt, err := f.Bytes()
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := readZip(t, rebuilt)
 
-	if len(got) != len(want) {
-		t.Fatalf("записей %d, в оригинале %d", len(got), len(want))
-	}
-	for i := range want {
-		if got[i].name != want[i].name {
-			t.Fatalf("запись %d: %s, в оригинале %s", i, got[i].name, want[i].name)
-		}
-		if !bytes.Equal(got[i].data, want[i].data) {
-			t.Errorf("%s: расхождение (%d байт против %d)\n%s",
-				want[i].name, len(got[i].data), len(want[i].data),
-				firstDiff(want[i].data, got[i].data))
-		}
+			if len(got) != len(want) {
+				t.Fatalf("записей %d, в оригинале %d", len(got), len(want))
+			}
+			for i := range want {
+				if got[i].name != want[i].name {
+					t.Fatalf("запись %d: %s, в оригинале %s", i, got[i].name, want[i].name)
+				}
+				if !bytes.Equal(got[i].data, want[i].data) {
+					t.Errorf("%s: расхождение (%d байт против %d)\n%s",
+						want[i].name, len(got[i].data), len(want[i].data),
+						firstDiff(want[i].data, got[i].data))
+				}
+			}
+		})
 	}
 }
 
@@ -135,5 +154,31 @@ func TestNextID(t *testing.T) {
 func TestOpenRejectsNonZip(t *testing.T) {
 	if _, err := rsf.Read(bytes.NewReader([]byte("не архив")), 8); err == nil {
 		t.Error("мусор вместо ZIP должен давать ошибку")
+	}
+}
+
+// TestSaveWritesSameBytes — Save до сих пор не вызывался ниоткуда, включая
+// тесты: возможность выглядела работающей, ничем это не подтверждая. Она
+// понадобится генератору, поэтому не удалена, а покрыта.
+func TestSaveWritesSameBytes(t *testing.T) {
+	f, err := rsf.Open(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want, err := f.Bytes()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(t.TempDir(), "saved.rsf")
+	if err := f.Save(path); err != nil {
+		t.Fatal(err)
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("на диске %d байт, в памяти %d", len(got), len(want))
 	}
 }

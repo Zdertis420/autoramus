@@ -37,6 +37,47 @@
         "Выкройка",
         "Швейная машинка",
         "Швеёно-вышивальгая машинка"
+      ],
+      "raw": [
+        {
+          "attribute": "F_BACKGROUND",
+          "value": -1
+        },
+        {
+          "attribute": "F_CREATE_DATE",
+          "value": "9/4/26 10:23 AM"
+        },
+        {
+          "attribute": "F_FONT",
+          "value": {
+            "NAME": "Dialog",
+            "SIZE": 10,
+            "STYLE": 0
+          }
+        },
+        {
+          "attribute": "F_FOREGROUND",
+          "value": -16777216
+        },
+        {
+          "attribute": "F_REV_DATE",
+          "value": "9/5/26 6:30 PM"
+        },
+        {
+          "attribute": "F_STATUS",
+          "value": {
+            "OTHER_NAME": "",
+            "TYPE": 0
+          }
+        },
+        {
+          "attribute": "F_SYSTEM_REV_DATE",
+          "value": "9/5/26 6:30 PM"
+        },
+        {
+          "attribute": "F_VISUAL_DATA",
+          "value": 8280808080808080
+        }
       ]
     },
     {
@@ -55,6 +96,39 @@
         "Раскройное оборудование",
         "Выкройка",
         "Швея-закройшица"
+      ],
+      "raw": [
+        {
+          "attribute": "F_BACKGROUND",
+          "value": -1
+        },
+        {
+          "attribute": "F_DECOMPOSITION_TYPE",
+          "value": -1
+        },
+        {
+          "attribute": "F_FONT",
+          "value": {
+            "NAME": "Dialog",
+            "SIZE": 10,
+            "STYLE": 0
+          }
+        },
+        {
+          "attribute": "F_FOREGROUND",
+          "value": -16777216
+        },
+        {
+          "attribute": "F_STATUS",
+          "value": {
+            "OTHER_NAME": "",
+            "TYPE": 0
+          }
+        },
+        {
+          "attribute": "F_VISUAL_DATA",
+          "value": ""
+        }
       ]
     },
     {
@@ -72,6 +146,39 @@
       "mechanism": [
         "Швейная машинка",
         "Швея-закройшица"
+      ],
+      "raw": [
+        {
+          "attribute": "F_BACKGROUND",
+          "value": -1
+        },
+        {
+          "attribute": "F_DECOMPOSITION_TYPE",
+          "value": -1
+        },
+        {
+          "attribute": "F_FONT",
+          "value": {
+            "NAME": "Dialog",
+            "SIZE": 10,
+            "STYLE": 0
+          }
+        },
+        {
+          "attribute": "F_FOREGROUND",
+          "value": -16777216
+        },
+        {
+          "attribute": "F_STATUS",
+          "value": {
+            "OTHER_NAME": "",
+            "TYPE": 0
+          }
+        },
+        {
+          "attribute": "F_VISUAL_DATA",
+          "value": ""
+        }
       ]
     },
     {
@@ -90,6 +197,39 @@
       "mechanism": [
         "Швея-закройшица",
         "Швеёно-вышивальгая машинка"
+      ],
+      "raw": [
+        {
+          "attribute": "F_BACKGROUND",
+          "value": -1
+        },
+        {
+          "attribute": "F_DECOMPOSITION_TYPE",
+          "value": -1
+        },
+        {
+          "attribute": "F_FONT",
+          "value": {
+            "NAME": "Dialog",
+            "SIZE": 10,
+            "STYLE": 0
+          }
+        },
+        {
+          "attribute": "F_FOREGROUND",
+          "value": -16777216
+        },
+        {
+          "attribute": "F_STATUS",
+          "value": {
+            "OTHER_NAME": "",
+            "TYPE": 0
+          }
+        },
+        {
+          "attribute": "F_VISUAL_DATA",
+          "value": ""
+        }
       ]
     }
   ],
@@ -146,6 +286,32 @@
                 90,
                 126
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 21.0,
+                  "TEXT_X": 25.125,
+                  "TEXT_Y": 110.625,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -167,6 +333,31 @@
                 288,
                 195
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 21.0,
+                  "TEXT_X": 147.5,
+                  "TEXT_Y": 203.125,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -183,6 +374,32 @@
                 37,
                 100
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -208,6 +425,32 @@
                 624,
                 344.375
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 38.0,
+                  "TEXT_X": 17.625,
+                  "TEXT_Y": 330.875,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -229,6 +472,31 @@
                 288,
                 243
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 38.0,
+                  "TEXT_X": 147.5,
+                  "TEXT_Y": 242.5,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -245,6 +513,32 @@
                 37,
                 344.375
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -269,6 +563,32 @@
                 134.81617647058823,
                 55.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 39.203125,
+                  "TEXT_WIDTH": 50.0,
+                  "TEXT_X": 79.375,
+                  "TEXT_Y": 13.6484375,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -290,6 +610,31 @@
                 381,
                 147
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 83.0,
+                  "TEXT_X": 386.875,
+                  "TEXT_Y": 68.0234375,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -306,6 +651,32 @@
                 123.125,
                 37
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -326,6 +697,32 @@
                 134.81617647058823,
                 102
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -342,6 +739,32 @@
                 411.25,
                 37
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -366,6 +789,32 @@
                 411.25,
                 201
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -385,6 +834,32 @@
                 134.81617647058823,
                 70.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -401,6 +876,32 @@
                 690,
                 37
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -425,6 +926,32 @@
                 690,
                 288
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -449,6 +976,32 @@
                 203.6470588235294,
                 386.25
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 43.0,
+                  "TEXT_X": 205.625,
+                  "TEXT_Y": 418.34765625,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -470,6 +1023,32 @@
                 319,
                 291
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 43.0,
+                  "TEXT_X": 279.875,
+                  "TEXT_Y": 326.173828125,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -486,6 +1065,32 @@
                 164.375,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -506,6 +1111,32 @@
                 203.6470588235294,
                 174
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -522,6 +1153,32 @@
                 424.375,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -546,6 +1203,32 @@
                 424.375,
                 276
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -565,6 +1248,32 @@
                 203.6470588235294,
                 373.125
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -581,6 +1290,32 @@
                 672.5,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -605,6 +1340,32 @@
                 672.5,
                 372
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -630,6 +1391,32 @@
                 793,
                 336
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 21.0,
+                  "TEXT_X": 757.5,
+                  "TEXT_Y": 338.75,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -651,6 +1438,31 @@
                 793,
                 219
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 21.0,
+                  "TEXT_X": 633.5,
+                  "TEXT_Y": 220.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -667,6 +1479,32 @@
                 793,
                 330.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -688,6 +1526,32 @@
                 793,
                 141.25
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -704,6 +1568,32 @@
                 37,
                 235.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -733,6 +1623,31 @@
                 369,
                 235.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 58.0,
+                  "TEXT_X": 284.875,
+                  "TEXT_Y": 161.5625,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           }
         ]
@@ -754,6 +1669,32 @@
                 793,
                 240.625
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -770,6 +1711,32 @@
                 37,
                 327.5
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           },
           {
@@ -799,6 +1766,31 @@
                 624,
                 327.5
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 41.0,
+                  "TEXT_X": 552.5,
+                  "TEXT_Y": 282.1875,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           }
         ]
@@ -824,6 +1816,31 @@
                 440,
                 276
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 33.0,
+                  "TEXT_X": 445.625,
+                  "TEXT_Y": 417.625,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -845,6 +1862,32 @@
                 412,
                 291
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 33.0,
+                  "TEXT_X": 401.875,
+                  "TEXT_Y": 407.75,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -861,6 +1904,32 @@
                 440,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -886,6 +1955,31 @@
                 130.58823529411765,
                 174
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 50.0,
+                  "TEXT_X": 133.875,
+                  "TEXT_Y": 417.296875,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -907,6 +2001,32 @@
                 350,
                 291
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 19.6015625,
+                  "TEXT_WIDTH": 50.0,
+                  "TEXT_X": 309.5,
+                  "TEXT_Y": 356.2734375,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -923,6 +2043,32 @@
                 151.25,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -948,6 +2094,31 @@
                 110.29411764705883,
                 174
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 35.0,
+                  "TEXT_X": 71.25,
+                  "TEXT_Y": 427.625,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -969,6 +2140,31 @@
                 381,
                 291
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 35.0,
+                  "TEXT_X": 363.75,
+                  "TEXT_Y": 386.5,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -985,6 +2181,32 @@
                 111.25,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
@@ -1010,6 +2232,32 @@
                 700.625,
                 372
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 9.80078125,
+                  "TEXT_WIDTH": 112.0,
+                  "TEXT_X": 585.625,
+                  "TEXT_Y": 422.921875,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -1031,6 +2279,31 @@
                 443,
                 291
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 1,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 39.203125,
+                  "TEXT_WIDTH": 40.0,
+                  "TEXT_X": 450.0,
+                  "TEXT_Y": 354.3984375,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 1
+                }
+              }
             ]
           },
           {
@@ -1047,10 +2320,73 @@
                 700.625,
                 407
               ]
+            ],
+            "raw": [
+              {
+                "attribute": "F_SECTOR_ATTRIBUTE",
+                "value": {
+                  "ALTERNATIVE_TEXT": "",
+                  "CREATE_POS": 0.0,
+                  "CREATE_STATE": -1,
+                  "SHOW_TEXT": 1,
+                  "TEXT_ALIGMENT": 0,
+                  "VISUAL_ATTRIBUTES": "8180808080808060BF82808080808080808080808080808080808080808080A4C07F7F7F7F808186808080C4E9E1ECEFE7888080808080808081808080808080808080808080"
+                }
+              },
+              {
+                "attribute": "F_SECTOR_PROPERTIES",
+                "value": {
+                  "SHOW_TEXT": 0,
+                  "SHOW_TILDA": 0,
+                  "TEXT_HIEGHT": 0.0,
+                  "TEXT_WIDTH": 0.0,
+                  "TEXT_X": 0.0,
+                  "TEXT_Y": 0.0,
+                  "TILDA_POS": 0.0,
+                  "TRANSPARENT": 0
+                }
+              }
             ]
           }
         ]
       }
     ]
-  }
+  },
+  "raw": [
+    {
+      "attribute": "F_CREATE_DATE",
+      "value": "9/4/26 12:00 AM"
+    },
+    {
+      "attribute": "F_PROJECT_PREFERENCES",
+      "value": {
+        "CHANGE_DATE": "9/4/26 10:23 AM",
+        "CREATE_DATE": "9/4/26 10:23 AM",
+        "DEFINITION": "",
+        "MODEL_LETTER": "",
+        "PROJECT_NAME": "новый2",
+        "TERM_ATTRIBUTE": 55,
+        "USED_AT": ""
+      }
+    },
+    {
+      "attribute": "F_REV_DATE",
+      "value": "9/5/26 6:29 PM"
+    },
+    {
+      "attribute": "F_STATUS",
+      "value": {
+        "OTHER_NAME": "",
+        "TYPE": 0
+      }
+    },
+    {
+      "attribute": "F_SYSTEM_REV_DATE",
+      "value": "9/5/26 6:29 PM"
+    },
+    {
+      "attribute": "F_VISUAL_DATA",
+      "value": 8280808080808080
+    }
+  ]
 }

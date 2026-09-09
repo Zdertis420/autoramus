@@ -17,6 +17,27 @@ import (
 // документе: позиций в исходнике у декомпилированной модели нет, но путь
 // остаётся осмысленным, и диагностика валидатора на ней не слепая.
 func Model(m *rsf.Model) (*ir.Model, error) {
+	out, _, err := ModelWithReport(m)
+	return out, err
+}
+
+// ModelWithReport — то же, плюс перечень того, что не доехало даже люком.
+//
+// Люк уносит почти всё, но не всё: сектор, чей сегмент не попал в раскладку,
+// вместе с сегментом теряет и свои атрибуты. Молчать об этом нельзя — ровно с
+// молчаливых потерь и начиналась работа.
+func ModelWithReport(m *rsf.Model) (*ir.Model, []rsf.Loss, error) {
+	// carried — элементы, чьё содержимое унесено люком. Заполняется по ходу
+	// перевода: только те, что действительно попали в документ.
+	carried := make(map[int64]bool)
+	out, err := build(m, carried)
+	if err != nil {
+		return nil, nil, err
+	}
+	return out, m.LossesExcept(carried), nil
+}
+
+func build(m *rsf.Model, carried map[int64]bool) (*ir.Model, error) {
 	functions := m.Functions()
 	if len(functions) == 0 {
 		return nil, fmt.Errorf("в модели нет ни одной работы")
@@ -37,6 +58,9 @@ func Model(m *rsf.Model) (*ir.Model, error) {
 
 	for i, s := range m.Streams() {
 		out.Flows = append(out.Flows, ref(s.Name, fmt.Sprintf("/flows/%d", i)))
+		// Имя потока уезжает в flows; иных данных у потока нет, но отметить
+		// его перенесённым обязательно — иначе он попадёт в перечень потерь.
+		carried[s.ID] = true
 	}
 
 	ordered := treeOrder(functions, root)
@@ -53,11 +77,19 @@ func Model(m *rsf.Model) (*ir.Model, error) {
 		if t := elementType(f.Type); t != "" {
 			fn.Type = ref(t, path+"/type")
 		}
+		fn.Raw = rawOf(m, f.ID)
+		carried[f.ID] = true
 		out.Functions = append(out.Functions, fn)
 		out.Links = append(out.Links, links(icom[f.ID], fn.Name, path)...)
 	}
 
-	out.Layout = layout(m, ordered, byID, root)
+	// Атрибуты самой модели: определение, буква модели, «используется в», даты.
+	// Автор и лист уже прочитаны выше, остальное доезжает люком.
+	out.Raw = rawOf(m, m.Element)
+	carried[m.Element] = true
+
+	out.Classifiers = classifiers(m, carried)
+	out.Layout = layout(m, ordered, byID, root, carried)
 	out.Index()
 	return out, nil
 }
@@ -164,7 +196,7 @@ func links(sides *rsf.ICOM, name ir.Ref, path string) []*ir.Link {
 // layout переносит геометрию целиком: координаты блоков и все сегменты
 // стрелок, сшитые узлами. Ординаты Ramus сюда не идут — это способ
 // выравнивать соседние стрелки, и раздавать их заново будет генератор (Р1).
-func layout(m *rsf.Model, ordered []rsf.Function, byID map[int64]rsf.Function, root rsf.Function) *ir.Layout {
+func layout(m *rsf.Model, ordered []rsf.Function, byID map[int64]rsf.Function, root rsf.Function, carried map[int64]bool) *ir.Layout {
 	out := &ir.Layout{Path: "/layout"}
 
 	for _, f := range ordered {
@@ -219,6 +251,10 @@ func layout(m *rsf.Model, ordered []rsf.Function, byID map[int64]rsf.Function, r
 			}
 			seg.From = endpoint(sector.Start, byID, nodes, segPath+"/from")
 			seg.To = endpoint(sector.End, byID, nodes, segPath+"/to")
+			// Свойства подписи и альтернативный текст принадлежат сектору;
+			// у разных сегментов одной стрелки они разные (Р17).
+			seg.Raw = rawOf(m, sector.ID)
+			carried[sector.ID] = true
 
 			for j, p := range sector.Points {
 				point := fmt.Sprintf("%s/points/%d", segPath, j)

@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "empty_document",
+    "message": "документ пуст",
+    "path": "",
+    "line": 1,
+    "column": 1
+  }
+]

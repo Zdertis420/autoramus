@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -60,6 +61,7 @@ func WriteYAML(w io.Writer, m *ir.Model, opts Options) error {
 			if s.Note != "" {
 				b.WriteString("    note: " + yamlString(s.Note) + "\n")
 			}
+			writeRawYAML(&b, "    ", s.Raw)
 		}
 	}
 
@@ -90,6 +92,7 @@ func WriteYAML(w io.Writer, m *ir.Model, opts Options) error {
 		if f.Note != "" {
 			b.WriteString("    note: " + yamlString(f.Note) + "\n")
 		}
+		writeRawYAML(&b, "    ", f.Raw)
 	}
 
 	if len(doc.Links) > 0 {
@@ -109,12 +112,133 @@ func WriteYAML(w io.Writer, m *ir.Model, opts Options) error {
 		}
 	}
 
+	writeRawYAML(&b, "", doc.Raw)
+
+	writeClassifiersYAML(&b, doc.Classifiers)
+
 	if doc.Layout != nil {
 		writeLayoutYAML(&b, doc.Layout)
 	}
 
 	_, err = io.WriteString(w, b.String())
 	return err
+}
+
+// writeClassifiersYAML печатает справочники. Пустая секция не печатается
+// вовсе: справочник без единой строки — обычное состояние модели, и заголовок
+// без содержимого только сбивал бы с толку.
+func writeClassifiersYAML(b *strings.Builder, classifiers []classifierDoc) {
+	if len(classifiers) == 0 {
+		return
+	}
+
+	b.WriteString("\nclassifiers:\n")
+	for i, c := range classifiers {
+		if i > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString("  - name: " + yamlString(c.Name) + "\n")
+		if c.Note != "" {
+			b.WriteString("    note: " + yamlString(c.Note) + "\n")
+		}
+		writeRawYAML(b, "    ", c.Raw)
+
+		b.WriteString("    columns:\n")
+		for _, col := range c.Columns {
+			b.WriteString("      - name: " + yamlString(col.Name) + "\n")
+			b.WriteString("        type: " + yamlString(col.Type) + "\n")
+			if col.Of != "" {
+				b.WriteString("        of: " + yamlString(col.Of) + "\n")
+			}
+			if col.Note != "" {
+				b.WriteString("        note: " + yamlString(col.Note) + "\n")
+			}
+			writeRawYAML(b, "        ", col.Raw)
+		}
+
+		if len(c.Rows) == 0 {
+			continue
+		}
+		b.WriteString("    rows:\n")
+		for _, row := range c.Rows {
+			b.WriteString("      - cells:\n")
+			for _, cell := range row.Cells {
+				b.WriteString("          - column: " + yamlString(cell.Column) + "\n")
+				b.WriteString("            value: " + cellYAML(cell.Value) + "\n")
+			}
+			if row.Note != "" {
+				b.WriteString("        note: " + yamlString(row.Note) + "\n")
+			}
+			writeRawYAML(b, "        ", row.Raw)
+		}
+	}
+}
+
+// newRaw переводит люк из IR в документ.
+func newRaw(source []ir.RawAttr) []rawDoc {
+	var out []rawDoc
+	for _, a := range source {
+		out = append(out, rawDoc{Attribute: a.Attribute.Raw, Value: a.Value})
+	}
+	return out
+}
+
+// writeRawYAML печатает люк. Пустой не печатается вовсе: люк есть у каждого
+// элемента (Р17), и у большинства ему нечего нести.
+func writeRawYAML(b *strings.Builder, indent string, raw []rawDoc) {
+	if len(raw) == 0 {
+		return
+	}
+	b.WriteString(indent + "raw:\n")
+	for _, a := range raw {
+		b.WriteString(indent + "  - attribute: " + yamlString(a.Attribute) + "\n")
+		b.WriteString(indent + "    value: " + rawValueYAML(a.Value) + "\n")
+	}
+}
+
+// rawValueYAML печатает значение записи люка. Многоколоночное значение —
+// потоковым отображением: оно короткое, а разворачивать его в блок значило бы
+// утопить документ в отступах.
+func rawValueYAML(v any) string {
+	m, ok := v.(map[string]any)
+	if !ok {
+		return cellYAML(v)
+	}
+	names := make([]string, 0, len(m))
+	for k := range m {
+		names = append(names, k)
+	}
+	sort.Strings(names)
+
+	fields := make([]string, 0, len(names))
+	for _, k := range names {
+		fields = append(fields, k+": "+cellYAML(m[k]))
+	}
+	return "{" + strings.Join(fields, ", ") + "}"
+}
+
+// cellYAML печатает значение ячейки по его виду: строку в кавычках, число и
+// признак как есть, список ссылок потоковым стилем. Печатать всё строками
+// нельзя — валидатор сверяет вид значения с типом колонки.
+func cellYAML(v any) string {
+	switch value := v.(type) {
+	case nil:
+		return "null"
+	case bool:
+		return strconv.FormatBool(value)
+	case json.Number:
+		return value.String()
+	case []any:
+		items := make([]string, len(value))
+		for i, item := range value {
+			items[i] = cellYAML(item)
+		}
+		return "[" + strings.Join(items, ", ") + "]"
+	case string:
+		return yamlString(value)
+	default:
+		return yamlString(fmt.Sprint(value))
+	}
 }
 
 func writeLayoutYAML(b *strings.Builder, l *layoutDoc) {
@@ -171,6 +295,10 @@ func writeLayoutYAML(b *strings.Builder, l *layoutDoc) {
 				points[k] = "[" + number(p[0]) + ", " + number(p[1]) + "]"
 			}
 			writeList(b, "          ", "points:", points)
+			// Люк у сегмента, а не у стрелки: свойства подписи и
+			// альтернативный текст принадлежат сектору, и у разных сегментов
+			// одной стрелки они разные (Р17).
+			writeRawYAML(b, "          ", s.Raw)
 		}
 	}
 }
@@ -263,12 +391,52 @@ type document struct {
 	Streams   []streamDoc   `json:"streams,omitempty"`
 	Functions []functionDoc `json:"functions"`
 	Links     []linkDoc     `json:"links,omitempty"`
-	Layout    *layoutDoc    `json:"layout,omitempty"`
+
+	// Классификаторы идут после работ и связей, но перед layout: сперва
+	// содержание модели, потом геометрия.
+	Classifiers []classifierDoc `json:"classifiers,omitempty"`
+	Layout      *layoutDoc      `json:"layout,omitempty"`
+	Raw         []rawDoc        `json:"raw,omitempty"`
+}
+
+// rawDoc — запись люка: атрибут Ramus, которому нет соответствия в полях
+// языка, вместе со значением как есть (Р9, Р17).
+type rawDoc struct {
+	Attribute string `json:"attribute"`
+	Value     any    `json:"value"`
+}
+
+type classifierDoc struct {
+	Name    string      `json:"name"`
+	Columns []columnDoc `json:"columns"`
+	Rows    []rowDoc    `json:"rows,omitempty"`
+	Note    string      `json:"note,omitempty"`
+	Raw     []rawDoc    `json:"raw,omitempty"`
+}
+
+type columnDoc struct {
+	Name string   `json:"name"`
+	Type string   `json:"type"`
+	Of   string   `json:"of,omitempty"`
+	Note string   `json:"note,omitempty"`
+	Raw  []rawDoc `json:"raw,omitempty"`
+}
+
+type rowDoc struct {
+	Cells []cellDoc `json:"cells"`
+	Note  string    `json:"note,omitempty"`
+	Raw   []rawDoc  `json:"raw,omitempty"`
+}
+
+type cellDoc struct {
+	Column string `json:"column"`
+	Value  any    `json:"value"`
 }
 
 type streamDoc struct {
-	Name string `json:"name"`
-	Note string `json:"note,omitempty"`
+	Name string   `json:"name"`
+	Note string   `json:"note,omitempty"`
+	Raw  []rawDoc `json:"raw,omitempty"`
 }
 
 type functionDoc struct {
@@ -281,6 +449,7 @@ type functionDoc struct {
 	Out       []string `json:"out,omitempty"`
 	Mechanism []string `json:"mechanism,omitempty"`
 	Note      string   `json:"note,omitempty"`
+	Raw       []rawDoc `json:"raw,omitempty"`
 }
 
 type linkDoc struct {
@@ -315,6 +484,7 @@ type segmentDoc struct {
 	From    *endpointDoc `json:"from,omitempty"`
 	To      *endpointDoc `json:"to,omitempty"`
 	Points  [][2]float64 `json:"points"`
+	Raw     []rawDoc     `json:"raw,omitempty"`
 }
 
 type endpointDoc struct {
@@ -328,29 +498,31 @@ type endpointDoc struct {
 // newDocument переводит IR в документ. Связь с обоими концами остаётся
 // в секции links: списками ICOM её не записать, там у стрелки всегда один
 // конец на блоке, а другой на границе листа.
+// Проверки на непечатаемое здесь больше нет: она смотрела на незаполненность
+// IR и потому срабатывала только на модели, собранной вручную. Из команды она
+// была недостижима — разбор классификаторы и не читал, — и файл со
+// справочниками уходил в вывод без них, с кодом успеха. Обнаружение переехало
+// в rsf.Unsupported, который смотрит в сам файл (FR-002).
 func newDocument(m *ir.Model) (*document, error) {
-	if len(m.Classifiers) > 0 {
-		return nil, fmt.Errorf("классификаторы пока не печатаются, а в модели их %d", len(m.Classifiers))
-	}
-	for _, f := range m.Functions {
-		if len(f.Raw) > 0 {
-			return nil, fmt.Errorf("работа «%s»: блок raw пока не печатается", f.Name.Name)
-		}
-	}
-
-	doc := &document{Model: m.Name.Raw, Author: m.Author, Page: m.Page}
+	doc := &document{Model: m.Name.Raw, Author: m.Author, Page: m.Page, Raw: newRaw(m.Raw)}
 	for _, flow := range m.Flows {
 		doc.Flows = append(doc.Flows, flow.Raw)
 	}
 	for _, s := range m.Streams {
-		doc.Streams = append(doc.Streams, streamDoc{Name: s.Name.Raw, Note: s.Note})
+		doc.Streams = append(doc.Streams, streamDoc{Name: s.Name.Raw, Note: s.Note, Raw: newRaw(s.Raw)})
 	}
 
 	// Срез заполняется целиком заранее: указатели в него нельзя раздавать
 	// до конца дописывания, иначе append переселит массив и часть ICOM
 	// уедет в брошенную копию.
 	doc.Functions = make([]functionDoc, len(m.Functions))
-	sides := make(map[string]*functionDoc, len(m.Functions))
+	// Работы адресуются по идентичности, а не по имени. В .rsf имя работы
+	// может повторяться и отсутствовать, и отображение по имени сводило такие
+	// работы в одну: связи всех безымянных накапливались на последней.
+	// Уникальность имён — требование к входному документу (Р4), а не свойство
+	// файла, и опираться на неё при чтении файла нельзя.
+	byPath := make(map[string]*functionDoc, len(m.Functions))
+	byName := make(map[string]*functionDoc, len(m.Functions))
 	for i, f := range m.Functions {
 		doc.Functions[i] = functionDoc{
 			Name: f.Name.Raw,
@@ -358,8 +530,21 @@ func newDocument(m *ir.Model) (*document, error) {
 			Kind: f.Kind.Raw,
 			Type: f.Type.Raw,
 			Note: f.Note,
+			Raw:  newRaw(f.Raw),
 		}
-		sides[f.Name.Name] = &doc.Functions[i]
+		if f.Name.Path != "" {
+			byPath[f.Name.Path] = &doc.Functions[i]
+		}
+		// Имя остаётся запасным ключом: связь из секции links адресует работу
+		// по имени, и её Ref указывает на саму связь, а не на работу.
+		byName[f.Name.Name] = &doc.Functions[i]
+	}
+
+	owner := func(r ir.Ref) *functionDoc {
+		if f, ok := byPath[r.Path]; ok {
+			return f
+		}
+		return byName[r.Name]
 	}
 
 	for _, l := range m.Links {
@@ -371,27 +556,64 @@ func newDocument(m *ir.Model) (*document, error) {
 			continue
 		}
 		if l.From.Set() {
-			if f := sides[l.From.Name]; f != nil {
-				f.Out = append(f.Out, l.Flow.Raw)
+			if f := owner(l.From); f != nil {
+				f.Out = appendFlow(f.Out, l.Flow.Raw)
 			}
 			continue
 		}
-		if f := sides[l.To.Name]; f != nil {
+		if f := owner(l.To); f != nil {
 			switch l.SideName() {
 			case ir.SideControl:
-				f.Control = append(f.Control, l.Flow.Raw)
+				f.Control = appendFlow(f.Control, l.Flow.Raw)
 			case ir.SideMechanism:
-				f.Mechanism = append(f.Mechanism, l.Flow.Raw)
+				f.Mechanism = appendFlow(f.Mechanism, l.Flow.Raw)
 			default:
-				f.In = append(f.In, l.Flow.Raw)
+				f.In = appendFlow(f.In, l.Flow.Raw)
 			}
 		}
 	}
+
+	doc.Classifiers = newClassifiers(m.Classifiers)
 
 	if m.Layout != nil {
 		doc.Layout = newLayout(m.Layout)
 	}
 	return doc, nil
+}
+
+// appendFlow добавляет поток в список ICOM, не повторяясь. Один поток может
+// прийти в работу несколькими секторами — это ветвление, а не несколько
+// стрелок, и называть его дважды значило бы описать не ту модель.
+func appendFlow(list []string, flow string) []string {
+	for _, existing := range list {
+		if existing == flow {
+			return list
+		}
+	}
+	return append(list, flow)
+}
+
+// newClassifiers переводит справочники IR в документ.
+func newClassifiers(source []*ir.Classifier) []classifierDoc {
+	var out []classifierDoc
+	for _, c := range source {
+		doc := classifierDoc{Name: c.Name.Raw, Note: c.Note, Raw: newRaw(c.Raw)}
+		for _, col := range c.Columns {
+			doc.Columns = append(doc.Columns, columnDoc{
+				Name: col.Name.Raw, Type: col.Type.Raw, Of: col.Of.Raw, Note: col.Note,
+				Raw: newRaw(col.Raw),
+			})
+		}
+		for _, row := range c.Rows {
+			r := rowDoc{Note: row.Note, Raw: newRaw(row.Raw)}
+			for _, cell := range row.Cells {
+				r.Cells = append(r.Cells, cellDoc{Column: cell.Column.Raw, Value: cell.Value})
+			}
+			doc.Rows = append(doc.Rows, r)
+		}
+		out = append(out, doc)
+	}
+	return out
 }
 
 func newLayout(l *ir.Layout) *layoutDoc {
@@ -413,6 +635,7 @@ func newLayout(l *ir.Layout) *layoutDoc {
 		for _, s := range a.Segments {
 			seg := segmentDoc{
 				On:      s.On.Raw,
+				Raw:     newRaw(s.Raw),
 				Context: s.Context,
 				From:    newEndpoint(s.From),
 				To:      newEndpoint(s.To),
@@ -468,7 +691,17 @@ func needsQuotes(s string) bool {
 	if _, err := strconv.ParseFloat(s, 64); err == nil {
 		return true
 	}
-	if strings.ContainsAny(s, ":#\n\t") || strings.ContainsAny(s[:1], "-?,[]{}&*!|>'\"%@`") {
+	// Индикаторы потокового стиля значимы в любой позиции, а не только в
+	// начале: списки ICOM и концы сегментов печатаются как [a, b] и {k: v},
+	// и запятая внутри имени там разделяет элементы. Имя «Оформление,
+	// нормконтроль и утверждение пояснительной записки» без кавычек
+	// прочитается как два поля, и документ перестанет описывать ту модель,
+	// из которой получен.
+	if strings.ContainsAny(s, ":#\n\t,[]{}") {
+		return true
+	}
+	// Остальные индикаторы значимы только в начале скаляра.
+	if strings.ContainsAny(s[:1], "-?&*!|>'\"%@`") {
 		return true
 	}
 	return false

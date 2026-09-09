@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_stream",
+    "message": "атрибуты потока «Ткань» уже заданы в строке 6",
+    "path": "/streams/1/name",
+    "line": 9,
+    "column": 11
+  }
+]

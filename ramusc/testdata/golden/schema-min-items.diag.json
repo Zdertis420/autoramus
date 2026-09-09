@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_min_items",
+    "message": "список не может быть пустым",
+    "path": "/flows",
+    "line": 3,
+    "column": 3
+  }
+]

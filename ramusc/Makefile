@@ -36,6 +36,7 @@ check:
 # Переписать эталоны после осознанного изменения сообщений или вывода dump.
 golden:
 	go test ./internal/validate -update
+	go test ./internal/rsf -update
 	go test ./cmd/ramusc -update
 
 cross:

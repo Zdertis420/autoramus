@@ -1,0 +1,141 @@
+[
+  {
+    "attribute": "F_BACKGROUND",
+    "kind": "работа",
+    "columns": [
+      "COLOR"
+    ],
+    "count": 5
+  },
+  {
+    "attribute": "F_CREATE_DATE",
+    "kind": "работа",
+    "columns": [
+      "VALUE"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_DECOMPOSITION_TYPE",
+    "kind": "работа",
+    "columns": [
+      "TYPE"
+    ],
+    "count": 4
+  },
+  {
+    "attribute": "F_FONT",
+    "kind": "работа",
+    "columns": [
+      "NAME",
+      "SIZE",
+      "STYLE"
+    ],
+    "count": 5
+  },
+  {
+    "attribute": "F_FOREGROUND",
+    "kind": "работа",
+    "columns": [
+      "COLOR"
+    ],
+    "count": 5
+  },
+  {
+    "attribute": "F_PROJECT_PREFERENCES",
+    "kind": "модель",
+    "columns": [
+      "CHANGE_DATE",
+      "CREATE_DATE",
+      "DEFINITION",
+      "PROJECT_NAME",
+      "USED_AT"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_REV_DATE",
+    "kind": "работа",
+    "columns": [
+      "VALUE"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_REV_DATE",
+    "kind": "модель",
+    "columns": [
+      "VALUE"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_SECTOR_ATTRIBUTE",
+    "kind": "сектор",
+    "columns": [
+      "ALTERNATIVE_TEXT",
+      "CREATE_POS",
+      "CREATE_STATE",
+      "SHOW_TEXT",
+      "TEXT_ALIGMENT",
+      "VISUAL_ATTRIBUTES"
+    ],
+    "count": 45
+  },
+  {
+    "attribute": "F_SECTOR_PROPERTIES",
+    "kind": "сектор",
+    "columns": [
+      "SHOW_TEXT",
+      "SHOW_TILDA",
+      "TEXT_HIEGHT",
+      "TEXT_WIDTH",
+      "TEXT_X",
+      "TEXT_Y",
+      "TILDA_POS",
+      "TRANSPARENT"
+    ],
+    "count": 45
+  },
+  {
+    "attribute": "F_STATUS",
+    "kind": "работа",
+    "columns": [
+      "OTHER_NAME",
+      "TYPE"
+    ],
+    "count": 5
+  },
+  {
+    "attribute": "F_SYSTEM_REV_DATE",
+    "kind": "работа",
+    "columns": [
+      "VALUE"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_SYSTEM_REV_DATE",
+    "kind": "модель",
+    "columns": [
+      "VALUE"
+    ],
+    "count": 1
+  },
+  {
+    "attribute": "F_VISUAL_DATA",
+    "kind": "работа",
+    "columns": [
+      "DATA"
+    ],
+    "count": 5
+  },
+  {
+    "attribute": "F_VISUAL_DATA",
+    "kind": "модель",
+    "columns": [
+      "DATA"
+    ],
+    "count": 1
+  }
+]

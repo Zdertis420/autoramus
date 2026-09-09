@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_max_items",
+    "message": "элементов 3, а нужно не больше 2",
+    "path": "/layout/arrows/0/segments/0/points/0",
+    "line": 8,
+    "column": 54
+  }
+]

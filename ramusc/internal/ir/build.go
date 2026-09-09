@@ -23,6 +23,7 @@ func Build(root *syntax.Node) *Model {
 	m.Name = c.refField("model")
 	m.Author = c.strField("author")
 	m.Page = c.strField("page")
+	m.Raw = buildRaw(c)
 
 	for _, it := range c.list("flows") {
 		m.Flows = append(m.Flows, it.ref())
@@ -115,6 +116,7 @@ func buildClassifier(c cursor) *Classifier {
 	cl := &Classifier{
 		Name: c.refField("name"),
 		Note: c.strField("note"),
+		Raw:  buildRaw(c),
 		Path: c.path,
 		Pos:  c.pos(),
 	}
@@ -124,6 +126,7 @@ func buildClassifier(c cursor) *Classifier {
 			Type: it.refField("type"),
 			Of:   it.refField("of"),
 			Note: it.strField("note"),
+			Raw:  buildRaw(it),
 			Path: it.path,
 			Pos:  it.pos(),
 		})
@@ -192,6 +195,7 @@ func buildSegment(c cursor) *Segment {
 		Context: c.boolField("context"),
 		From:    buildEndpoint(c, "from"),
 		To:      buildEndpoint(c, "to"),
+		Raw:     buildRaw(c),
 		Path:    c.path,
 		Pos:     c.pos(),
 	}

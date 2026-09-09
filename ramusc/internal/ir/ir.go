@@ -99,6 +99,9 @@ type Model struct {
 	Links       []*Link
 	Classifiers []*Classifier
 	Layout      *Layout
+	// Raw — атрибуты самой модели, которым нет соответствия в полях языка
+	// (Р17): определение, буква модели, «используется в», даты.
+	Raw []RawAttr
 
 	Pos diag.Pos
 
@@ -176,6 +179,7 @@ type Classifier struct {
 	Columns []*Column
 	Rows    []*Row
 	Note    string
+	Raw     []RawAttr
 
 	Path string
 	Pos  diag.Pos
@@ -197,6 +201,7 @@ type Column struct {
 	Type Ref // text | number | long | date | bool | ref | list
 	Of   Ref // цель ref или list: классификатор; не задано — работа
 	Note string
+	Raw  []RawAttr
 
 	Path string
 	Pos  diag.Pos
@@ -265,6 +270,10 @@ type Segment struct {
 	From   *Endpoint
 	To     *Endpoint
 	Points []Point
+	// Raw — атрибуты сектора: свойства подписи, альтернативный текст (Р17).
+	// Люк стоит у сегмента, а не у стрелки: у разных сегментов одной стрелки
+	// свойства подписи разные.
+	Raw []RawAttr
 
 	Path string
 	Pos  diag.Pos

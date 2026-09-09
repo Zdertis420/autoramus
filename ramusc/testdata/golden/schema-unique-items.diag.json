@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "schema_unique_items",
+    "message": "элементы 0 и 1 совпадают, а повторы здесь запрещены",
+    "path": "/flows",
+    "line": 3,
+    "column": 3
+  }
+]

@@ -141,21 +141,21 @@ func (t *Table) Encode(generateTime string) []byte {
 	var b bytes.Buffer
 	b.WriteString(xmlHeader)
 	b.WriteString(`<table generate-from-table="`)
-	escape(&b, t.Name)
+	escapeAttr(&b, t.Name)
 	b.WriteString(`" generate-time="`)
-	escape(&b, generateTime)
+	escapeAttr(&b, generateTime)
 	b.WriteString(`" prefix="`)
-	escape(&b, t.Prefix)
+	escapeAttr(&b, t.Prefix)
 	b.WriteString(`">`)
 
 	b.WriteString(`<fields>`)
 	for _, f := range t.Fields {
 		b.WriteString(`<field id="`)
-		escape(&b, f.ID)
+		escapeAttr(&b, f.ID)
 		b.WriteString(`" name="`)
-		escape(&b, f.Name)
+		escapeAttr(&b, f.Name)
 		b.WriteString(`" type="`)
-		escape(&b, f.Type)
+		escapeAttr(&b, f.Type)
 		b.WriteString(`"/>`)
 	}
 	b.WriteString(`</fields>`)
@@ -182,7 +182,7 @@ func (t *Table) Encode(generateTime string) []byte {
 				continue
 			}
 			b.WriteString(`">`)
-			escape(&b, v.Text)
+			escapeText(&b, v.Text)
 			b.WriteString(`</f>`)
 		}
 		b.WriteString(`</row>`)
@@ -191,19 +191,32 @@ func (t *Table) Encode(generateTime string) []byte {
 	return b.Bytes()
 }
 
-// escape экранирует ровно те символы, что и Ramus. Апостроф не трогаем:
-// в двойных кавычках он законен, и лишнее экранирование развалило бы
-// побайтовое сравнение.
-func escape(b *bytes.Buffer, s string) {
+// escapeAttr экранирует значение атрибута. Двойная кавычка обязана быть
+// экранирована: ею же атрибут и ограничен. Апостроф не трогаем — внутри
+// двойных кавычек он законен, и лишнее экранирование развалило бы побайтовое
+// сравнение.
+func escapeAttr(b *bytes.Buffer, s string) {
+	escapeXML(b, s, true)
+}
+
+// escapeText экранирует текст элемента. Двойная кавычка здесь ничего не
+// ограничивает, и Ramus пишет её как есть: имя вида «Раздел "основные
+// технические решения"» доезжает до файла с настоящими кавычками. Экранировать
+// её значило бы разойтись с оригиналом на каждом таком значении.
+func escapeText(b *bytes.Buffer, s string) {
+	escapeXML(b, s, false)
+}
+
+func escapeXML(b *bytes.Buffer, s string, quotes bool) {
 	for _, r := range s {
-		switch r {
-		case '&':
+		switch {
+		case r == '&':
 			b.WriteString("&amp;")
-		case '<':
+		case r == '<':
 			b.WriteString("&lt;")
-		case '>':
+		case r == '>':
 			b.WriteString("&gt;")
-		case '"':
+		case r == '"' && quotes:
 			b.WriteString("&quot;")
 		default:
 			b.WriteRune(r)
@@ -237,12 +250,31 @@ type xmlCell struct {
 	Text string `xml:",chardata"`
 }
 
+// preserveCR заменяет возврат каретки ссылкой на символ до разбора.
+//
+// XML требует от разборщика нормализовать переводы строк: «\r\n» и одиночный
+// «\r» превращаются в «\n». Ramus пишет «\r\n» внутрь текстовых значений как
+// есть, поэтому после честного разбора возврат каретки пропадает, и round-trip
+// перестаёт быть побайтовым. Ссылки на символ нормализации не подлежат — через
+// «&#13;» значение доезжает до нас целым, а записывается снова буквальным
+// «\r», как в оригинале.
+//
+// Замена безопасна для всего файла: в дампах таблиц Ramus «\r» встречается
+// только в тексте значений, внутрь разметки он не попадает (проверено на всех
+// моделях набора).
+func preserveCR(data []byte) []byte {
+	if !bytes.ContainsRune(data, '\r') {
+		return data
+	}
+	return bytes.ReplaceAll(data, []byte("\r"), []byte("&#13;"))
+}
+
 // ParseTable разбирает дамп таблицы. Второй результат — false, если это не
 // таблица: под data/ лежат ещё и java.util.Properties, а такие записи мы
 // переносим в новый файл как есть.
 func ParseTable(path string, data []byte) (*Table, string, bool) {
 	var doc xmlTable
-	if err := xml.Unmarshal(data, &doc); err != nil {
+	if err := xml.Unmarshal(preserveCR(data), &doc); err != nil {
 		return nil, "", false
 	}
 

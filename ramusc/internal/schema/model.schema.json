@@ -3,50 +3,69 @@
   "$id": "https://github.com/Zdertis420/autoramus/schema/model.schema.json",
   "title": "Модель Ramus",
   "$comment": "Схема описывает форму документа. Всё, что связывает поля между собой (объявлен ли поток, существует ли работа, подходит ли значение типу колонки), проверяет семантический слой: там сообщение получается адресным.",
-
   "type": "object",
   "additionalProperties": false,
-  "required": ["model", "flows", "functions"],
+  "required": [
+    "model",
+    "flows",
+    "functions"
+  ],
   "properties": {
     "model": {
       "$ref": "#/$defs/name",
       "description": "Имя модели; оно же имя корневой работы контекстной диаграммы."
     },
-    "author": { "type": "string" },
-    "page": { "type": "string" },
+    "author": {
+      "type": "string"
+    },
+    "page": {
+      "type": "string"
+    },
     "flows": {
       "description": "Словарь потоков. Обязателен: имя, не объявленное здесь, — ошибка (Р6).",
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
-      "items": { "$ref": "#/$defs/name" }
+      "items": {
+        "$ref": "#/$defs/name"
+      }
     },
     "streams": {
       "description": "Атрибуты потоков. Необязательна: сам словарь имён — это flows, а сюда попадает только то, у чего есть что сказать сверх имени (Р12).",
       "type": "array",
-      "items": { "$ref": "#/$defs/stream" }
+      "items": {
+        "$ref": "#/$defs/stream"
+      }
     },
     "functions": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/function" }
+      "items": {
+        "$ref": "#/$defs/function"
+      }
     },
     "links": {
       "description": "Общая форма связи (Р7). Списки in/control/out/mechanism — сахар над ней, обе формы опускаются в одно IR.",
       "type": "array",
-      "items": { "$ref": "#/$defs/link" }
+      "items": {
+        "$ref": "#/$defs/link"
+      }
     },
     "classifiers": {
       "description": "Классификаторы Ramus — таблицы с типизированными колонками (Р8).",
       "type": "array",
-      "items": { "$ref": "#/$defs/classifier" }
+      "items": {
+        "$ref": "#/$defs/classifier"
+      }
     },
     "layout": {
       "description": "Оверрайд автораскладки (Р2). Автор её обычно не пишет; декомпилятор заполняет полностью.",
       "$ref": "#/$defs/layout"
+    },
+    "raw": {
+      "$ref": "#/$defs/raw"
     }
   },
-
   "$defs": {
     "name": {
       "description": "Имя работы, потока, классификатора или колонки. Оно же идентификатор (Р4). Имя из одних пробелов схема пропускает: нормализация пробелов и проверка пустоты после неё — дело этапа IR, там и сообщение получится внятным.",
@@ -59,16 +78,20 @@
     },
     "flowList": {
       "type": "array",
-      "items": { "$ref": "#/$defs/name" }
+      "items": {
+        "$ref": "#/$defs/name"
+      }
     },
-
     "raw": {
       "description": "Люк для атрибутов, которых схема не знает (Р9). Значение намеренно не проверяется: смысл люка в том, чтобы не упираться в потолок формата.",
       "type": "array",
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["attribute", "value"],
+        "required": [
+          "attribute",
+          "value"
+        ],
         "properties": {
           "attribute": {
             "$ref": "#/$defs/name",
@@ -78,55 +101,92 @@
         }
       }
     },
-
     "stream": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "$ref": "#/$defs/name" },
-        "note": { "$ref": "#/$defs/note" },
-        "raw": { "$ref": "#/$defs/raw" }
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "note": {
+          "$ref": "#/$defs/note"
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
+        }
       }
     },
-
     "function": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name"],
+      "required": [
+        "name"
+      ],
       "properties": {
-        "name": { "$ref": "#/$defs/name" },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
         "of": {
           "$ref": "#/$defs/name",
           "description": "Родительская работа. Иерархия задаётся ссылкой, а не вложенностью (Р3)."
         },
         "kind": {
           "description": "Вид диаграммы-декомпозиции этой работы (Р8). По умолчанию idef0.",
-          "enum": ["idef0", "dfd"]
+          "enum": [
+            "idef0",
+            "dfd"
+          ]
         },
         "type": {
           "description": "Вид самого элемента (Р8). Всё, кроме process, допустимо только на диаграмме DFD.",
-          "enum": ["process", "store", "external", "role"]
+          "enum": [
+            "process",
+            "store",
+            "external",
+            "role"
+          ]
         },
-        "in": { "$ref": "#/$defs/flowList" },
-        "control": { "$ref": "#/$defs/flowList" },
-        "out": { "$ref": "#/$defs/flowList" },
-        "mechanism": { "$ref": "#/$defs/flowList" },
-        "note": { "$ref": "#/$defs/note" },
-        "raw": { "$ref": "#/$defs/raw" }
+        "in": {
+          "$ref": "#/$defs/flowList"
+        },
+        "control": {
+          "$ref": "#/$defs/flowList"
+        },
+        "out": {
+          "$ref": "#/$defs/flowList"
+        },
+        "mechanism": {
+          "$ref": "#/$defs/flowList"
+        },
+        "note": {
+          "$ref": "#/$defs/note"
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
+        }
       }
     },
-
     "side": {
       "description": "Сторона блока у конца `to`. Выход у конца `from` подразумевается: так устроен ICOM.",
-      "enum": ["in", "control", "mechanism"]
+      "enum": [
+        "in",
+        "control",
+        "mechanism"
+      ]
     },
     "link": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["flow"],
+      "required": [
+        "flow"
+      ],
       "properties": {
-        "flow": { "$ref": "#/$defs/name" },
+        "flow": {
+          "$ref": "#/$defs/name"
+        },
         "from": {
           "$ref": "#/$defs/name",
           "description": "Кто производит. Опущено — поток приходит с границы листа."
@@ -135,112 +195,202 @@
           "$ref": "#/$defs/name",
           "description": "Кто потребляет. Опущено — поток уходит на границу листа."
         },
-        "side": { "$ref": "#/$defs/side" },
-        "note": { "$ref": "#/$defs/note" }
+        "side": {
+          "$ref": "#/$defs/side"
+        },
+        "note": {
+          "$ref": "#/$defs/note"
+        }
       }
     },
-
     "columnType": {
       "description": "Словарь повторяет типы Ramus: ref — Core.OtherElement, list — Core.ElementList (Р8).",
-      "enum": ["text", "number", "long", "date", "bool", "ref", "list"]
+      "enum": [
+        "text",
+        "number",
+        "long",
+        "date",
+        "bool",
+        "ref",
+        "list"
+      ]
     },
     "column": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "type"],
+      "required": [
+        "name",
+        "type"
+      ],
       "properties": {
-        "name": { "$ref": "#/$defs/name" },
-        "type": { "$ref": "#/$defs/columnType" },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "type": {
+          "$ref": "#/$defs/columnType"
+        },
         "of": {
           "$ref": "#/$defs/name",
           "description": "Куда ссылается колонка ref или list: имя классификатора. Опущено — ссылка на работу."
         },
-        "note": { "$ref": "#/$defs/note" }
+        "note": {
+          "$ref": "#/$defs/note"
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
+        }
       }
     },
     "cellValue": {
       "description": "Тип значения обязан подходить типу колонки, но связать их схемой нельзя — это делает семантический слой.",
-      "type": ["string", "number", "boolean", "array"],
-      "items": { "$ref": "#/$defs/name" }
+      "type": [
+        "string",
+        "number",
+        "boolean",
+        "array"
+      ],
+      "items": {
+        "$ref": "#/$defs/name"
+      }
     },
     "cell": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["column", "value"],
+      "required": [
+        "column",
+        "value"
+      ],
       "properties": {
-        "column": { "$ref": "#/$defs/name" },
-        "value": { "$ref": "#/$defs/cellValue" }
+        "column": {
+          "$ref": "#/$defs/name"
+        },
+        "value": {
+          "$ref": "#/$defs/cellValue"
+        }
       }
     },
     "row": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["cells"],
+      "required": [
+        "cells"
+      ],
       "properties": {
         "cells": {
           "description": "Ячейка называет свою колонку: позиционный список молча разъезжается при пропуске значения.",
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/cell" }
+          "items": {
+            "$ref": "#/$defs/cell"
+          }
         },
-        "note": { "$ref": "#/$defs/note" },
-        "raw": { "$ref": "#/$defs/raw" }
+        "note": {
+          "$ref": "#/$defs/note"
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
+        }
       }
     },
     "classifier": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["name", "columns"],
+      "required": [
+        "name",
+        "columns"
+      ],
       "properties": {
-        "name": { "$ref": "#/$defs/name" },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
         "columns": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/column" }
+          "items": {
+            "$ref": "#/$defs/column"
+          }
         },
         "rows": {
           "type": "array",
-          "items": { "$ref": "#/$defs/row" }
+          "items": {
+            "$ref": "#/$defs/row"
+          }
         },
-        "note": { "$ref": "#/$defs/note" }
+        "note": {
+          "$ref": "#/$defs/note"
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
+        }
       }
     },
-
     "point": {
       "description": "Точка ломаной: [x, y].",
       "type": "array",
       "minItems": 2,
       "maxItems": 2,
-      "items": { "type": "number" }
+      "items": {
+        "type": "number"
+      }
     },
     "functionLayout": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["function", "x", "y"],
+      "required": [
+        "function",
+        "x",
+        "y"
+      ],
       "properties": {
-        "function": { "$ref": "#/$defs/name" },
-        "x": { "type": "number" },
-        "y": { "type": "number" },
-        "width": { "type": "number" },
-        "height": { "type": "number" }
+        "function": {
+          "$ref": "#/$defs/name"
+        },
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "width": {
+          "type": "number"
+        },
+        "height": {
+          "type": "number"
+        }
       }
     },
     "blockSide": {
       "description": "Сторона блока, к которой прицеплен конец сегмента. В отличие от связи здесь возможен и выход: речь о геометрии, а не о том, кто кого потребляет.",
-      "enum": ["in", "control", "mechanism", "out"]
+      "enum": [
+        "in",
+        "control",
+        "mechanism",
+        "out"
+      ]
     },
     "sheetSide": {
       "description": "Край листа. Названия геометрические: у края нет роли ICOM, он просто сторона диаграммы.",
-      "enum": ["left", "right", "top", "bottom"]
+      "enum": [
+        "left",
+        "right",
+        "top",
+        "bottom"
+      ]
     },
     "endpoint": {
       "description": "Конец сегмента: блок, край листа или узел ветвления — ровно одно из трёх. Опустить конец целиком значит «висит неприсоединённым»: в моделях Ramus такие есть.",
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "function": { "$ref": "#/$defs/name" },
-        "side": { "$ref": "#/$defs/blockSide" },
-        "border": { "$ref": "#/$defs/sheetSide" },
+        "function": {
+          "$ref": "#/$defs/name"
+        },
+        "side": {
+          "$ref": "#/$defs/blockSide"
+        },
+        "border": {
+          "$ref": "#/$defs/sheetSide"
+        },
         "node": {
           "$ref": "#/$defs/name",
           "description": "Имя узла ветвления или слияния. Область видимости — одна стрелка: узлы разных потоков не пересекаются даже при совпадении имён."
@@ -255,7 +405,10 @@
       "description": "Один нарисованный кусок стрелки на одной диаграмме.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["on", "points"],
+      "required": [
+        "on",
+        "points"
+      ],
       "properties": {
         "on": {
           "$ref": "#/$defs/name",
@@ -265,12 +418,21 @@
           "description": "Сегмент лежит на контекстной диаграмме A-0, а не в декомпозиции корневой работы. Различить их иначе нельзя: обе зовутся именем модели.",
           "type": "boolean"
         },
-        "from": { "$ref": "#/$defs/endpoint" },
-        "to": { "$ref": "#/$defs/endpoint" },
+        "from": {
+          "$ref": "#/$defs/endpoint"
+        },
+        "to": {
+          "$ref": "#/$defs/endpoint"
+        },
         "points": {
           "type": "array",
           "minItems": 2,
-          "items": { "$ref": "#/$defs/point" }
+          "items": {
+            "$ref": "#/$defs/point"
+          }
+        },
+        "raw": {
+          "$ref": "#/$defs/raw"
         }
       }
     },
@@ -278,13 +440,20 @@
       "description": "Геометрия одной стрелки: набор сегментов, сшитых узлами. Ординаты (общие направляющие Ramus) в язык не входят — их раздаёт компилятор.",
       "type": "object",
       "additionalProperties": false,
-      "required": ["flow", "segments"],
+      "required": [
+        "flow",
+        "segments"
+      ],
       "properties": {
-        "flow": { "$ref": "#/$defs/name" },
+        "flow": {
+          "$ref": "#/$defs/name"
+        },
         "segments": {
           "type": "array",
           "minItems": 1,
-          "items": { "$ref": "#/$defs/segment" }
+          "items": {
+            "$ref": "#/$defs/segment"
+          }
         }
       }
     },
@@ -294,11 +463,15 @@
       "properties": {
         "functions": {
           "type": "array",
-          "items": { "$ref": "#/$defs/functionLayout" }
+          "items": {
+            "$ref": "#/$defs/functionLayout"
+          }
         },
         "arrows": {
           "type": "array",
-          "items": { "$ref": "#/$defs/arrowLayout" }
+          "items": {
+            "$ref": "#/$defs/arrowLayout"
+          }
         }
       }
     }

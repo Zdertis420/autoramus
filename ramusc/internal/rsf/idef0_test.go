@@ -3,6 +3,7 @@ package rsf_test
 import (
 	"testing"
 
+	"github.com/Zdertis420/autoramus/ramusc/internal/fixtures"
 	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
 )
 
@@ -135,5 +136,35 @@ func TestICOM(t *testing.T) {
 	}
 	if got := icom[root.ID].Control; len(got) != 1 || got[0] != "Правила изготовления швейного изделия" {
 		t.Errorf("управление корневой работы = %v", got)
+	}
+}
+
+// TestEveryFixtureParses — разбор модели идёт по всему перечню. Подробные
+// утверждения выше остаются привязаны к «Изготовлению юбки»: они описывают
+// именно её содержимое. Здесь проверяется то, что верно для любой модели.
+func TestEveryFixtureParses(t *testing.T) {
+	for _, model := range fixtures.All() {
+		t.Run(model.Name, func(t *testing.T) {
+			f, err := rsf.Open(model.Path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			m, err := rsf.NewModel(f)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if m.FunctionQualifier == 0 {
+				t.Error("квалификатор работ не найден")
+			}
+			if len(m.Functions()) == 0 {
+				t.Error("в модели нет ни одной работы")
+			}
+			// Стороны ICOM не обязаны быть у каждой работы, но отображение
+			// обязано строиться без паники на любой модели.
+			if m.ICOM() == nil {
+				t.Error("ICOM не собрался")
+			}
+		})
 	}
 }

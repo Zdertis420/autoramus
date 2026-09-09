@@ -1,0 +1,10 @@
+[
+  {
+    "severity": "error",
+    "code": "duplicate_classifier",
+    "message": "классификатор «Материалы» уже объявлен в строке 13",
+    "path": "/classifiers/1/name",
+    "line": 18,
+    "column": 11
+  }
+]
