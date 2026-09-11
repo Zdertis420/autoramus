@@ -51,12 +51,20 @@ func Apply(m *ir.Model) {
 			})
 		}
 	}
+
+	// Третьим проходом — стрелки. Он идёт после блоков, и не может иначе:
+	// маршрут считается по фактическим прямоугольникам, а часть из них
+	// появилась только что.
+	placeArrows(m)
 }
 
 // diagram — единица раскладки: работа вместе с её непосредственными детьми.
 // У каждой своя диагональ и свой порядок; дети разных родителей друг о друге
 // не знают.
 type diagram struct {
+	// owner — чья это диаграмма. Пусто у контекстной A-0: её владелец —
+	// сама модель, а корневая работа лежит на ней единственным блоком.
+	owner string
 	// children — имена детей в порядке объявления.
 	children []string
 	// siblings — те же имена отображением: связи между чужими работами рёбер
@@ -92,7 +100,7 @@ func diagrams(m *ir.Model) []diagram {
 		for _, name := range names {
 			siblings[name] = true
 		}
-		out = append(out, diagram{children: names, siblings: siblings})
+		out = append(out, diagram{owner: owner, children: names, siblings: siblings})
 	}
 	return out
 }

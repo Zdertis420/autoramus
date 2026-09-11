@@ -30,8 +30,12 @@ const (
 	gap = 6.0
 )
 
-// box — прямоугольник блока.
-type box struct{ x, y, width, height float64 }
+// box — прямоугольник блока. Имя нужно маршрутам: они ищут прямоугольник по
+// концу стрелки, а тот назван работой.
+type box struct {
+	x, y, width, height float64
+	owner               string
+}
 
 // place расставляет n блоков одной диаграммы по диагонали.
 //

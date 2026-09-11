@@ -1,0 +1,338 @@
+package layout
+
+import (
+	"fmt"
+
+	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
+)
+
+// Стрелки: что нарисовано на каждой диаграмме и куда прицеплено.
+//
+// Связи в документе лежат половинками (ir.Build): у записи из in, control и
+// mechanism заполнено только To, у записи из out — только From. Пара собирается
+// на диаграмме: поток, который тут кто-то производит, даёт стрелку между
+// блоками; поток, которого не производит никто, приходит с края листа.
+//
+// Опираться на это можно потому, что конвейер идёт лесенкой: валидатор уже
+// проверил баланс (checkBalance, checkDecomposition) и гарантировал, что
+// потребляемый поток либо производится на этой же диаграмме, либо приходит к
+// родителю той же стороной. Перепроверять здесь нечего.
+
+// arrow — одна нарисованная линия на одной диаграмме.
+type arrow struct {
+	flow string
+	// diagram — владелец диаграммы; пусто означает контекстную A-0.
+	diagram string
+	from    end
+	to      end
+}
+
+// end — конец стрелки. Либо сторона блока, либо край листа: узлов ветвления эта
+// версия не создаёт.
+type end struct {
+	// function — работа, к которой прицеплен конец; пусто — край листа.
+	function string
+	// side — сторона ICOM. У края листа она же говорит, какой это край:
+	// вход приходит слева, управление сверху, механизм снизу, выход уходит
+	// вправо.
+	side string
+	// place — место на стороне блока, k-я стрелка из n. Раздаётся отдельным
+	// проходом, когда все стрелки диаграммы уже известны.
+	place slot
+}
+
+// onBorder сообщает, что конец лежит на краю листа.
+func (e end) onBorder() bool { return e.function == "" }
+
+// slot — место стрелки на стороне блока: k-я из n.
+type slot struct{ k, n int }
+
+// arrows выводит стрелки всех диаграмм модели и раздаёт им места на сторонах.
+//
+// Порядок — порядок диаграмм, внутри диаграммы порядок связей в документе.
+// Обход отображений дал бы разные файлы на одном и том же входе (принцип III
+// конституции).
+func arrows(m *ir.Model) []*arrow {
+	var out []*arrow
+	for _, d := range diagrams(m) {
+		out = append(out, diagramArrows(m, d)...)
+	}
+	assignSlots(out)
+	return out
+}
+
+// diagramArrows выводит стрелки одной диаграммы.
+func diagramArrows(m *ir.Model, d diagram) []*arrow {
+	produced := make(map[string][]string)
+	consumed := make(map[string]bool)
+	for _, l := range m.Links {
+		if l.From.Name != "" && d.siblings[l.From.Name] {
+			produced[l.Flow.Name] = appendOnce(produced[l.Flow.Name], l.From.Name)
+		}
+		if l.To.Name != "" && d.siblings[l.To.Name] {
+			consumed[l.Flow.Name] = true
+		}
+	}
+
+	var out []*arrow
+	add := func(flow string, from, to end) {
+		out = append(out, &arrow{flow: flow, diagram: d.owner, from: from, to: to})
+	}
+
+	for _, l := range m.Links {
+		flow := l.Flow.Name
+		switch {
+		case l.To.Name != "" && d.siblings[l.To.Name]:
+			to := end{function: l.To.Name, side: l.SideName()}
+
+			// Явная связь секции links: оба конца названы автором, и искать
+			// производителя по имени потока не нужно (Р7).
+			if l.From.Name != "" && d.siblings[l.From.Name] {
+				add(flow, end{function: l.From.Name, side: ir.SideOut}, to)
+				continue
+			}
+
+			producers := produced[flow]
+			if len(producers) == 0 {
+				// Производителя на диаграмме нет — поток приходит снаружи.
+				// Край выбирается по стороне: у граничной стрелки сторона
+				// ICOM не меняется, это и проверяет валидатор.
+				add(flow, end{side: to.side}, to)
+				continue
+			}
+			for _, from := range producers {
+				if from == to.function {
+					continue // работа сама себе источник: рисовать нечего
+				}
+				add(flow, end{function: from, side: ir.SideOut}, to)
+			}
+
+		case l.From.Name != "" && d.siblings[l.From.Name] && l.To.Name == "":
+			if consumed[flow] {
+				// Уже нарисовано стрелкой к потребителю: связь одна, и
+				// рисовать её дважды значило бы удвоить стрелки.
+				continue
+			}
+			add(flow, end{function: l.From.Name, side: ir.SideOut}, end{side: ir.SideOut})
+		}
+	}
+	return out
+}
+
+// appendOnce добавляет имя, если его ещё нет: работа, объявившая один и тот же
+// выход дважды, не должна давать двух стрелок.
+func appendOnce(list []string, name string) []string {
+	for _, existing := range list {
+		if existing == name {
+			return list
+		}
+	}
+	return append(list, name)
+}
+
+// assignSlots раздаёт стрелкам места на сторонах блоков.
+//
+// Сторона делится на n+1 равных частей, k-я стрелка садится в k/(n+1). Мера
+// снята с контекстной диаграммы `examples/тест.rsf`: два входа стоят ровно в
+// 1/3 и 2/3 высоты блока, а одиночные управление, механизм и выход — в
+// середине стороны.
+//
+// Ключ включает диаграмму: один и тот же блок на диаграмме родителя и на своей
+// собственной несёт разные стрелки, и места считаются отдельно.
+func assignSlots(all []*arrow) {
+	type key struct{ diagram, function, side string }
+
+	total := make(map[key]int)
+	for _, a := range all {
+		for _, e := range []end{a.from, a.to} {
+			if e.onBorder() {
+				continue
+			}
+			total[key{a.diagram, e.function, e.side}]++
+		}
+	}
+
+	taken := make(map[key]int, len(total))
+	for _, a := range all {
+		for _, e := range []*end{&a.from, &a.to} {
+			if e.onBorder() {
+				continue
+			}
+			k := key{a.diagram, e.function, e.side}
+			taken[k]++
+			e.place = slot{k: taken[k], n: total[k]}
+		}
+	}
+}
+
+// attach отдаёт точку крепления к стороне блока.
+func attach(b box, e end) point {
+	f := float64(e.place.k) / float64(e.place.n+1)
+	switch e.side {
+	case ir.SideIn:
+		return point{x: b.x, y: b.y + b.height*f}
+	case ir.SideControl:
+		return point{x: b.x + b.width*f, y: b.y}
+	case ir.SideMechanism:
+		return point{x: b.x + b.width*f, y: b.y + b.height}
+	default: // ir.SideOut
+		return point{x: b.x + b.width, y: b.y + b.height*f}
+	}
+}
+
+// borderOf переводит сторону ICOM в край листа. Названия у края геометрические:
+// роли ICOM у него нет, он просто сторона диаграммы.
+func borderOf(side string) string {
+	switch side {
+	case ir.SideIn:
+		return ir.BorderLeft
+	case ir.SideControl:
+		return ir.BorderTop
+	case ir.SideMechanism:
+		return ir.BorderBottom
+	default: // ir.SideOut
+		return ir.BorderRight
+	}
+}
+
+// boxIndex сводит раскладку блоков в отображение «работа → прямоугольник».
+func boxIndex(m *ir.Model) map[string]box {
+	out := make(map[string]box, len(m.Layout.Functions))
+	for _, f := range m.Layout.Functions {
+		out[f.Function.Name] = box{
+			x:      f.X.Val,
+			y:      f.Y.Val,
+			width:  f.Width.Val,
+			height: f.Height.Val,
+			owner:  f.Function.Name,
+		}
+	}
+	return out
+}
+
+// placeArrows дописывает геометрию стрелкам, которых не задал автор.
+//
+// Стрелка в языке — это поток со всеми своими сегментами, поэтому сегменты
+// группируются по имени потока, а порядок записей берётся из секции flows:
+// обход отображения дал бы разные файлы на одном входе.
+func placeArrows(m *ir.Model) {
+	known := make(map[string]bool, len(m.Layout.Arrows))
+	for _, a := range m.Layout.Arrows {
+		known[a.Flow.Name] = true
+	}
+
+	boxes := boxIndex(m)
+	blocks := make(map[string][]box)
+	for _, d := range diagrams(m) {
+		blocks[d.owner] = diagramBoxes(d, boxes)
+	}
+
+	drawn := make(map[string][]*arrow)
+	for _, a := range arrows(m) {
+		if known[a.flow] {
+			// Автор задал геометрию этого потока сам — не трогаем ни одного
+			// его сегмента (Р2).
+			continue
+		}
+		drawn[a.flow] = append(drawn[a.flow], a)
+	}
+
+	for _, flow := range m.Flows {
+		segments := drawn[flow.Name]
+		if len(segments) == 0 {
+			continue
+		}
+		path := fmt.Sprintf("/layout/arrows/%d", len(m.Layout.Arrows))
+		out := &ir.ArrowLayout{
+			Flow: ir.Ref{Name: flow.Name, Path: path + "/flow"},
+			Path: path,
+		}
+		for i, a := range segments {
+			out.Segments = append(out.Segments, segmentOf(m, a, boxes, blocks[a.diagram],
+				fmt.Sprintf("%s/segments/%d", path, i)))
+		}
+		m.Layout.Arrows = append(m.Layout.Arrows, out)
+	}
+}
+
+// diagramBoxes отдаёт блоки одной диаграммы: то, сквозь что стрелке идти
+// нельзя.
+func diagramBoxes(d diagram, boxes map[string]box) []box {
+	out := make([]box, 0, len(d.children))
+	for _, name := range d.children {
+		if b, ok := boxes[name]; ok {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
+// segmentOf собирает сегмент: диаграмму, концы и ломаную.
+func segmentOf(m *ir.Model, a *arrow, boxes map[string]box, blocks []box, path string) *ir.Segment {
+	seg := &ir.Segment{Path: path}
+	if a.diagram == "" {
+		// Контекстная диаграмма зовётся так же, как корневая работа, и
+		// отличается от её декомпозиции только этой пометкой.
+		seg.Context = true
+		seg.On = ir.Ref{Name: m.Name.Name, Path: path + "/on"}
+	} else {
+		seg.On = ir.Ref{Name: a.diagram, Path: path + "/on"}
+	}
+	seg.From = endpointOf(a.from, path+"/from")
+	seg.To = endpointOf(a.to, path+"/to")
+
+	from, to := ends(a, boxes)
+	for i, p := range route(a, from, to, blocks) {
+		point := fmt.Sprintf("%s/points/%d", path, i)
+		seg.Points = append(seg.Points, ir.Point{
+			X:    ir.Num{Val: p.x, Set: true, Path: point + "/0"},
+			Y:    ir.Num{Val: p.y, Set: true, Path: point + "/1"},
+			Path: point,
+		})
+	}
+	return seg
+}
+
+// ends считает точки обоих концов. Конец на краю листа выравнивается по
+// противоположному: граничная стрелка идёт прямой, пока ей не мешают.
+func ends(a *arrow, boxes map[string]box) (from, to point) {
+	if !a.from.onBorder() {
+		from = attach(boxes[a.from.function], a.from)
+	}
+	if !a.to.onBorder() {
+		to = attach(boxes[a.to.function], a.to)
+	}
+	if a.from.onBorder() {
+		from = borderPoint(a.from.side, to)
+	}
+	if a.to.onBorder() {
+		to = borderPoint(a.to.side, from)
+	}
+	return from, to
+}
+
+// borderPoint кладёт конец на край листа напротив уже известного конца.
+func borderPoint(side string, opposite point) point {
+	switch borderOf(side) {
+	case ir.BorderLeft:
+		return point{x: sheetLeft, y: opposite.y}
+	case ir.BorderRight:
+		return point{x: sheetRight, y: opposite.y}
+	case ir.BorderTop:
+		return point{x: opposite.x, y: sheetTop}
+	default: // ir.BorderBottom
+		return point{x: opposite.x, y: sheetBottom}
+	}
+}
+
+// endpointOf переводит конец стрелки в язык IR.
+func endpointOf(e end, path string) *ir.Endpoint {
+	if e.onBorder() {
+		return &ir.Endpoint{Border: borderOf(e.side), Path: path}
+	}
+	return &ir.Endpoint{
+		Function: ir.Ref{Name: e.function, Path: path + "/function"},
+		Side:     e.side,
+		Path:     path,
+	}
+}

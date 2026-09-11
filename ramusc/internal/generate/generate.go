@@ -35,7 +35,28 @@ func File(m *ir.Model) (*rsf.File, error) {
 	if err := writeModel(target, m); err != nil {
 		return nil, err
 	}
-	if err := writeFunctions(target, m, boxes); err != nil {
+	functions, err := writeFunctions(target, m, boxes)
+	if err != nil {
+		return nil, err
+	}
+
+	// Порядок записи — работы, потоки, секторы — задаёт и номера элементов:
+	// сектор ссылается на работу и на поток, и оба обязаны существовать
+	// раньше него.
+	streams, err := writeStreams(target, m)
+	if err != nil {
+		return nil, err
+	}
+	numbers, err := newCounters(file)
+	if err != nil {
+		return nil, err
+	}
+	if err := writeSectors(target, m, functions, streams, numbers); err != nil {
+		return nil, err
+	}
+	// Последовательности ординат и кросспоинтов Ramus сам не перематывает,
+	// поэтому выросшие значения возвращаются в файл.
+	if err := numbers.flush(); err != nil {
 		return nil, err
 	}
 	return file, nil

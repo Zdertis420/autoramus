@@ -1,6 +1,7 @@
 package generate_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/decompile"
@@ -14,9 +15,10 @@ import (
 // Ради него декомпилятор и делали раньше срока: иначе генератор проверялся бы
 // глазами в чужой программе, то есть не проверялся бы.
 //
-// Чего круг НЕ проверяет: стрелок, классификаторов и люка raw в файле нет по
-// объёму фичи, поэтому расхождение по этим разделам ожидаемо и сравнением не
-// покрывается. Появятся стрелки — сравнение расширится вместе с ними.
+// Чего круг НЕ проверяет: классификаторов и люка raw в файле нет по объёму
+// фичи, поэтому расхождение по этим разделам ожидаемо. Стрелки проверяются:
+// связи обязаны вернуться из файла теми же — тот же поток, тот же источник,
+// тот же приёмник, та же сторона.
 
 // modelOf декомпилирует настоящий файл в IR.
 func modelOf(t *testing.T, path string) *ir.Model {
@@ -75,6 +77,7 @@ func TestRoundTrip(t *testing.T) {
 
 			compareFunctions(t, got, want)
 			compareGeometry(t, got, want)
+			compareLinks(t, got, want)
 		})
 	}
 }
@@ -127,4 +130,34 @@ func compareGeometry(t *testing.T, got, want *ir.Model) {
 				box.X.Val, box.Y.Val, box.Width.Val, box.Height.Val)
 		}
 	}
+}
+
+// compareLinks сверяет связи: потерь быть не должно ни одной (FR-012, SC-002).
+//
+// Сравнивается множество, а не порядок: связи в документе лежат половинками, и
+// декомпилятор собирает их заново по ICOM работ. Порядок при этом задаётся
+// порядком работ, а он уже проверен отдельно.
+func compareLinks(t *testing.T, got, want *ir.Model) {
+	t.Helper()
+
+	missing := linkSet(want)
+	for key := range linkSet(got) {
+		delete(missing, key)
+	}
+	for key := range missing {
+		t.Errorf("связь потеряна: %s", key)
+	}
+
+	if len(got.Links) != len(want.Links) {
+		t.Errorf("связей %d, ожидалось %d", len(got.Links), len(want.Links))
+	}
+}
+
+// linkSet сводит связи к множеству строк «поток|источник|приёмник|сторона».
+func linkSet(m *ir.Model) map[string]bool {
+	out := make(map[string]bool, len(m.Links))
+	for _, l := range m.Links {
+		out[fmt.Sprintf("%s|%s|%s|%s", l.Flow.Name, l.From.Name, l.To.Name, l.SideName())] = true
+	}
+	return out
 }

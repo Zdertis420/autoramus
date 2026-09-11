@@ -240,6 +240,20 @@ func (m *Model) Attribute(name string) (int64, bool) {
 	return parseID(raw), true
 }
 
+// Qualifier отдаёт идентификатор квалификатора по имени, например F_STREAMS.
+// Второе значение — нашёлся ли он вообще.
+//
+// Открыто наружу ради генератора, как и Attribute: номера квалификаторов свои
+// в каждом файле, и искать их надо по имени. Второй такой поиск рядом означал
+// бы одно знание в двух местах.
+func (m *Model) Qualifier(name string) (int64, bool) {
+	raw, ok := m.qualifiers[name]
+	if !ok {
+		return -1, false
+	}
+	return parseID(raw), true
+}
+
 // QualifierName отдаёт имя квалификатора работ — им же названа модель в дереве.
 func (m *Model) QualifierName() string {
 	qualifiers, err := m.File.Table("qualifiers")

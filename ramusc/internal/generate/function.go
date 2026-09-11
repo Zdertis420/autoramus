@@ -28,10 +28,13 @@ const (
 //
 // Порядок обхода — порядок документа. Он же задаёт цепочку соседей и номера
 // элементов: обход map дал бы разные файлы на одном и том же входе.
-func writeFunctions(m *rsf.Model, source *ir.Model, boxes map[string]*ir.FunctionLayout) error {
+// Возвращает номера элементов по именам работ: на них ссылаются концы
+// стрелок, и второй раз выводить их по тому же правилу значило бы держать одно
+// знание в двух местах.
+func writeFunctions(m *rsf.Model, source *ir.Model, boxes map[string]*ir.FunctionLayout) (map[string]int64, error) {
 	next, err := m.File.NextID("elements", "ELEMENT_ID")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// Номера раздаются заранее и все сразу: родитель может быть объявлен
@@ -53,7 +56,7 @@ func writeFunctions(m *rsf.Model, source *ir.Model, boxes map[string]*ir.Functio
 		if f.Of.Name != "" {
 			owner, ok := ids[f.Of.Name]
 			if !ok {
-				return fmt.Errorf("работа «%s»: родителя «%s» нет в документе", f.Name.Name, f.Of.Name)
+				return nil, fmt.Errorf("работа «%s»: родителя «%s» нет в документе", f.Name.Name, f.Of.Name)
 			}
 			parent = owner
 		}
@@ -74,10 +77,10 @@ func writeFunctions(m *rsf.Model, source *ir.Model, boxes map[string]*ir.Functio
 		}
 
 		if err := writeFunction(m, id, parent, previous, kind, f, boxes[f.Name.Name]); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return ids, nil
 }
 
 // writeFunction кладёт одну работу во все её таблицы.

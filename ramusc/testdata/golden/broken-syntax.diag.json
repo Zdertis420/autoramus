@@ -5,6 +5,6 @@
     "message": "ошибка синтаксиса JSON: invalid character '\"' after object key:value pair",
     "path": "",
     "line": 7,
-    "column": 7
+    "column": 8
   }
 ]

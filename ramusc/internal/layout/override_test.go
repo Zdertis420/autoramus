@@ -90,3 +90,79 @@ func TestPartialOverride(t *testing.T) {
 		}
 	}
 }
+
+// pinArrow закрепляет за потоком геометрию стрелки, как это делает автор.
+func pinArrow(m *ir.Model, flow string, points ...float64) {
+	if m.Layout == nil {
+		m.Layout = &ir.Layout{Path: "/layout"}
+	}
+	seg := &ir.Segment{
+		On:   ir.Ref{Name: "корень", Path: "/layout/arrows/0/segments/0/on"},
+		From: &ir.Endpoint{Border: ir.BorderLeft},
+		To:   &ir.Endpoint{Function: ir.Ref{Name: "первая"}, Side: ir.SideIn},
+	}
+	for i := 0; i+1 < len(points); i += 2 {
+		seg.Points = append(seg.Points, ir.Point{
+			X: ir.Num{Val: points[i], Set: true},
+			Y: ir.Num{Val: points[i+1], Set: true},
+		})
+	}
+	m.Layout.Arrows = append(m.Layout.Arrows, &ir.ArrowLayout{
+		Flow:     ir.Ref{Name: flow},
+		Segments: []*ir.Segment{seg},
+	})
+}
+
+// TestArrowOverrideWins — геометрия стрелки, заданная автором, не трогается.
+//
+// Это то же правило Р2, что и у блоков, но для стрелок оно до сих пор ни на
+// чём не проверялось: в языке геометрия стрелок была, а компилятор её не
+// использовал.
+func TestArrowOverrideWins(t *testing.T) {
+	m := modelOf(t, example("skirt.yaml"))
+	pinArrow(m, "Ткань", 7, 100, 200, 100)
+
+	layout.Apply(m)
+
+	arrow := arrowOf(t, m, "Ткань")
+	if len(arrow.Segments) != 1 {
+		t.Fatalf("сегментов %d, автор задал один: раскладка дописала своё", len(arrow.Segments))
+	}
+	points := arrow.Segments[0].Points
+	if len(points) != 2 || points[0].X.Val != 7 || points[1].X.Val != 200 {
+		t.Errorf("ломаная автора изменилась: %s", format(arrow.Segments[0]))
+	}
+
+	// Соседний поток при этом обязан быть разложен как обычно.
+	if len(arrowOf(t, m, "Фурнитура").Segments) == 0 {
+		t.Error("соседняя стрелка осталась без геометрии")
+	}
+}
+
+// TestArrowOverrideKeepsOthers — закрепление одной стрелки не двигает
+// остальные (SC-008).
+func TestArrowOverrideKeepsOthers(t *testing.T) {
+	free := modelOf(t, example("skirt.yaml"))
+	layout.Apply(free)
+
+	m := modelOf(t, example("skirt.yaml"))
+	pinArrow(m, "Ткань", 7, 100, 200, 100)
+	layout.Apply(m)
+
+	for _, a := range free.Layout.Arrows {
+		if a.Flow.Name == "Ткань" {
+			continue
+		}
+		other := arrowOf(t, m, a.Flow.Name)
+		if len(other.Segments) != len(a.Segments) {
+			t.Errorf("«%s»: сегментов %d, было %d", a.Flow.Name, len(other.Segments), len(a.Segments))
+			continue
+		}
+		for i := range a.Segments {
+			if format(other.Segments[i]) != format(a.Segments[i]) {
+				t.Errorf("«%s», сегмент %d: %s, было %s", a.Flow.Name, i,
+					format(other.Segments[i]), format(a.Segments[i]))
+			}
+		}
+	}
+}

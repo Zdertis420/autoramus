@@ -21,6 +21,12 @@ func exec(t *testing.T, args ...string) (code int, stdout, stderr string) {
 func example(name string) string { return filepath.Join("..", "..", "..", "examples", name) }
 func model(name string) string   { return filepath.Join("..", "..", "testdata", "models", name) }
 
+// document — валидный документ-фикстура. Битые модели лежат в models, эти — в
+// documents: их битость никто не проверяет, они для другого.
+func document(name string) string {
+	return filepath.Join("..", "..", "testdata", "documents", name)
+}
+
 func TestValidateExitCodes(t *testing.T) {
 	tests := []struct {
 		name string
@@ -160,24 +166,52 @@ func TestCompileWritesFile(t *testing.T) {
 	}
 }
 
-// TestCompileWarnsAboutArrows — автор узнаёт, чего в файле пока нет.
+// TestCompileSaysNothingAboutArrows — предупреждения о ненаписанных связях
+// больше нет (FR-013).
 //
-// Связи не записываются, и файл поэтому заведомо неполон. Промолчать значило бы
-// завести молчаливую потерю на выходном конце конвейера — ровно ту, которую
-// только что убрали на входном.
-func TestCompileWarnsAboutArrows(t *testing.T) {
+// Прежде компиляция честно сообщала, что стрелки в файл не попадают. Теперь
+// попадают, и остаться предупреждению значило бы врать автору ровно наоборот.
+func TestCompileSaysNothingAboutArrows(t *testing.T) {
 	_, code, stderr := compiled(t, decompiledYubka(t))
 
 	if code != exitOK {
 		t.Fatalf("код возврата = %d, ожидался %d\n%s", code, exitOK, stderr)
 	}
-	if !strings.Contains(stderr, "связи в .rsf пока не записываются") {
-		t.Errorf("автор не предупреждён о ненаписанных связях:\n%s", stderr)
+	if strings.Contains(stderr, "связи в .rsf пока не записываются") {
+		t.Errorf("предупреждение о ненаписанных связях никуда не делось:\n%s", stderr)
 	}
-	// В модели четырнадцать потоков; число должно быть названо, иначе
-	// предупреждение не отличить от общей отговорки.
-	if !strings.Contains(stderr, "14") {
-		t.Errorf("в предупреждении нет числа потоков:\n%s", stderr)
+}
+
+// TestCompileDocuments — весь набор документов компилируется молча.
+//
+// Ходит по тому же набору, что и раскладка: три примера поставки и две
+// фикстуры, добавленные этой фичей. Предупреждений быть не должно ни одного —
+// ни о связях, ни о координатах (SC-007).
+func TestCompileDocuments(t *testing.T) {
+	paths := []string{
+		example("skirt.yaml"),
+		example("skirt.json"),
+		example("skirt-full.yaml"),
+		document("feedback.yaml"),
+		document("nested.yaml"),
+		document("staircase.yaml"),
+	}
+
+	for _, path := range paths {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			out, code, stderr := compiled(t, path)
+			if code != exitOK {
+				t.Fatalf("код возврата = %d, ожидался %d\n%s", code, exitOK, stderr)
+			}
+			if _, err := os.Stat(out); err != nil {
+				t.Fatalf("файл не создан: %v", err)
+			}
+			for _, complaint := range []string{"пока не записываются", "нет координат", "warning"} {
+				if strings.Contains(stderr, complaint) {
+					t.Errorf("компиляция пожаловалась (%q):\n%s", complaint, stderr)
+				}
+			}
+		})
 	}
 }
 
