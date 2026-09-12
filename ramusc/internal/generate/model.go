@@ -57,5 +57,38 @@ func writeModel(m *rsf.Model, source *ir.Model) error {
 	// PROJECT_NAME не трогаем: языком оно не выражается, смысл его неизвестен,
 	// а в настоящей модели там лежит остаток мастера («новый2»). Записать туда
 	// имя модели значило бы выдать догадку за знание.
+
+	return writeVisualData(m, m.Element)
+}
+
+// writeVisualData отмечает элемент как владельца диаграммы.
+//
+// Без этой строки Ramus не рисует на его диаграмме ни одного сегмента:
+// SectorRefactor.loadFromFunction выходит по `return`, не дойдя до секторов,
+// если у владельца нет F_VISUAL_DATA. Работам строку пишет writeFunction,
+// элементу модели — эта функция: он владеет сегментами контекстной диаграммы
+// A-0, и без неё A-0 оставалась пустой.
+//
+// Мера снята дифом: файл, собранный нами, открытый в Ramus и сохранённый
+// после сдвига блока, отличается от исходного ровно этой строкой — секторы,
+// точки и концы Ramus не тронул вовсе.
+func writeVisualData(m *rsf.Model, element int64) error {
+	attribute, found := m.Attribute("F_VISUAL_DATA")
+	if !found {
+		return fmt.Errorf("в заготовке нет атрибута F_VISUAL_DATA")
+	}
+	table, err := m.File.Table("attribute_visual_datas")
+	if err != nil {
+		return err
+	}
+	_, err = table.Add(map[string]string{
+		"ATTRIBUTE_ID":    fmt.Sprint(attribute),
+		"ELEMENT_ID":      fmt.Sprint(element),
+		"DATA":            visualDataMask,
+		"VALUE_BRANCH_ID": "0",
+	})
+	if err != nil {
+		return fmt.Errorf("attribute_visual_datas: %w", err)
+	}
 	return nil
 }

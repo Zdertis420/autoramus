@@ -98,8 +98,8 @@ func TestEveryLinkDrawn(t *testing.T) {
 // TestSegmentsAreWellFormed — у каждого сегмента есть диаграмма, оба конца и
 // ломаная, а концы — блок или край листа.
 //
-// Узлов ветвления эта версия не создаёт, и конец-узел означал бы, что в
-// раскладку заехало то, чего генератор записать не умеет.
+// Концом бывает блок, край листа или узел ветвления — больше ничем. Иной вид
+// означал бы, что в раскладку заехало то, чего генератор записать не умеет.
 func TestSegmentsAreWellFormed(t *testing.T) {
 	for _, path := range documents() {
 		t.Run(filepath.Base(path), func(t *testing.T) {
@@ -125,9 +125,9 @@ func TestSegmentsAreWellFormed(t *testing.T) {
 					}
 					for _, e := range []*ir.Endpoint{s.From, s.To} {
 						switch e.Kind() {
-						case ir.EndpointFunction, ir.EndpointBorder:
+						case ir.EndpointFunction, ir.EndpointBorder, ir.EndpointNode:
 						default:
-							t.Errorf("%s: конец не блок и не край листа (%s)", where, e.Kind())
+							t.Errorf("%s: конец не блок, не край листа и не узел (%s)", where, e.Kind())
 						}
 					}
 					if len(s.Points) < 2 {
@@ -183,12 +183,13 @@ func TestAttachPoints(t *testing.T) {
 	}
 }
 
-// TestBranchingDrawsEveryConsumer — поток к нескольким потребителям даёт
-// стрелку каждому (FR-007).
+// TestBranchingDrawsEveryConsumer — поток к нескольким потребителям доходит до
+// каждого, и делает это одним деревом (FR-002, FR-003).
 //
 // «Правила изготовления» приходят ко всем трём работам A0 плюс к корневой на
-// A-0: четыре сегмента, и ни одним меньше. Кросспоинтов ветвления эта версия
-// не ставит, поэтому и линий столько же, сколько потребителей.
+// A-0. На A0 это дерево: один вход с края, два узла и три отвода — 2n−1 = 5
+// сегментов при трёх потребителях, как у «контроля» в `тест.rsf`. На A-0
+// потребитель один, ветвить нечего, и сегмент там ровно один.
 func TestBranchingDrawsEveryConsumer(t *testing.T) {
 	m := modelOf(t, example("skirt.yaml"))
 	layout.Apply(m)
@@ -207,8 +208,27 @@ func TestBranchingDrawsEveryConsumer(t *testing.T) {
 			t.Errorf("«Правила изготовления» не доходят до работы «%s»", name)
 		}
 	}
-	if len(arrow.Segments) != len(want) {
-		t.Errorf("сегментов %d, ожидалось %d", len(arrow.Segments), len(want))
+	if got, want := len(arrow.Segments), 5+1; got != want {
+		t.Errorf("сегментов %d, ожидалось %d (дерево на A0 плюс одиночный на A-0)", got, want)
+	}
+
+	// Край листа поток пересекает по разу на диаграмму: дубли, ради которых
+	// дерево и заведено, ушли.
+	// Диаграмма опознаётся именем вместе с пометкой Context: контекстная A-0 и
+	// декомпозиция A0 зовутся одинаково и различаются только ею.
+	entries := make(map[string]int)
+	for _, s := range arrow.Segments {
+		if s.From != nil && s.From.Kind() == ir.EndpointBorder {
+			entries[fmt.Sprintf("%s/context=%v", s.On.Name, s.Context)]++
+		}
+	}
+	for diagram, n := range entries {
+		if n != 1 {
+			t.Errorf("на диаграмме «%s» поток входит на лист %d раз, а должен один", diagram, n)
+		}
+	}
+	if len(entries) != 2 {
+		t.Errorf("диаграмм со входом с края %d, ожидалось 2", len(entries))
 	}
 }
 

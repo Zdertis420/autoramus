@@ -18,19 +18,23 @@ import (
 // потребляемый поток либо производится на этой же диаграмме, либо приходит к
 // родителю той же стороной. Перепроверять здесь нечего.
 
-// arrow — одна нарисованная линия на одной диаграмме.
+// arrow — один нарисованный сегмент на одной диаграмме.
 type arrow struct {
 	flow string
 	// diagram — владелец диаграммы; пусто означает контекстную A-0.
 	diagram string
 	from    end
 	to      end
+	// points — готовая ломаная. Непуста у сегментов дерева: их маршруты
+	// считаются все вместе (tree.go), а не поодиночке, потому что магистраль
+	// и узлы у них общие. У остальных пуста, и маршрут строит route().
+	points []point
 }
 
-// end — конец стрелки. Либо сторона блока, либо край листа: узлов ветвления эта
-// версия не создаёт.
+// end — конец стрелки: сторона блока, край листа или узел ветвления.
 type end struct {
-	// function — работа, к которой прицеплен конец; пусто — край листа.
+	// function — работа, к которой прицеплен конец; пусто — край листа
+	// либо узел.
 	function string
 	// side — сторона ICOM. У края листа она же говорит, какой это край:
 	// вход приходит слева, управление сверху, механизм снизу, выход уходит
@@ -39,10 +43,17 @@ type end struct {
 	// place — место на стороне блока, k-я стрелка из n. Раздаётся отдельным
 	// проходом, когда все стрелки диаграммы уже известны.
 	place slot
+	// node — имя узла ветвления; непустое означает, что конец сходится с
+	// другими сегментами этой же стрелки. Область видимости имени — одна
+	// стрелка, так его понимает и генератор.
+	node string
 }
 
 // onBorder сообщает, что конец лежит на краю листа.
-func (e end) onBorder() bool { return e.function == "" }
+func (e end) onBorder() bool { return e.function == "" && e.node == "" }
+
+// onFunction сообщает, что конец прицеплен к блоку.
+func (e end) onFunction() bool { return e.function != "" }
 
 // slot — место стрелки на стороне блока: k-я из n.
 type slot struct{ k, n int }
@@ -145,7 +156,7 @@ func assignSlots(all []*arrow) {
 	total := make(map[key]int)
 	for _, a := range all {
 		for _, e := range []end{a.from, a.to} {
-			if e.onBorder() {
+			if !e.onFunction() {
 				continue
 			}
 			total[key{a.diagram, e.function, e.side}]++
@@ -155,7 +166,7 @@ func assignSlots(all []*arrow) {
 	taken := make(map[key]int, len(total))
 	for _, a := range all {
 		for _, e := range []*end{&a.from, &a.to} {
-			if e.onBorder() {
+			if !e.onFunction() {
 				continue
 			}
 			k := key{a.diagram, e.function, e.side}
@@ -227,13 +238,18 @@ func placeArrows(m *ir.Model) {
 		blocks[d.owner] = diagramBoxes(d, boxes)
 	}
 
-	drawn := make(map[string][]*arrow)
+	var free []*arrow
 	for _, a := range arrows(m) {
 		if known[a.flow] {
 			// Автор задал геометрию этого потока сам — не трогаем ни одного
-			// его сегмента (Р2).
+			// его сегмента (Р2), и ветвление к нему тоже не применяется.
 			continue
 		}
+		free = append(free, a)
+	}
+
+	drawn := make(map[string][]*arrow)
+	for _, a := range branch(free, boxes, blocks) {
 		drawn[a.flow] = append(drawn[a.flow], a)
 	}
 
@@ -281,8 +297,14 @@ func segmentOf(m *ir.Model, a *arrow, boxes map[string]box, blocks []box, path s
 	seg.From = endpointOf(a.from, path+"/from")
 	seg.To = endpointOf(a.to, path+"/to")
 
-	from, to := ends(a, boxes)
-	for i, p := range route(a, from, to, blocks) {
+	// У сегмента дерева ломаная уже посчитана: магистраль и узлы общие для
+	// всех его ветвей, и поодиночке их не построить.
+	line := a.points
+	if line == nil {
+		from, to := ends(a, boxes)
+		line = route(a, from, to, blocks)
+	}
+	for i, p := range line {
 		point := fmt.Sprintf("%s/points/%d", path, i)
 		seg.Points = append(seg.Points, ir.Point{
 			X:    ir.Num{Val: p.x, Set: true, Path: point + "/0"},
@@ -327,6 +349,9 @@ func borderPoint(side string, opposite point) point {
 
 // endpointOf переводит конец стрелки в язык IR.
 func endpointOf(e end, path string) *ir.Endpoint {
+	if e.node != "" {
+		return &ir.Endpoint{Node: ir.Ref{Name: e.node, Path: path + "/node"}, Path: path}
+	}
 	if e.onBorder() {
 		return &ir.Endpoint{Border: borderOf(e.side), Path: path}
 	}

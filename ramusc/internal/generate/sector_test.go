@@ -506,3 +506,148 @@ func keys(m map[string]bool) []string {
 	}
 	return out
 }
+
+// TestDiagramOwnersHaveVisualData — у владельца каждой диаграммы, на которой
+// есть сегменты, стоит строка F_VISUAL_DATA.
+//
+// Это условие отрисовки, а не оформление: SectorRefactor.loadFromFunction
+// выходит по `return`, не дойдя до секторов, если строки нет, — и диаграмма
+// остаётся пустой при полностью верных таблицах секторов. Так и пропадала A-0:
+// работам строку писали, элементу модели (владельцу сегментов контекстной
+// диаграммы) — нет.
+//
+// Проверяются все проверочные документы: владельцем бывает и работа, и элемент
+// модели, и упустить можно любого.
+func TestDiagramOwnersHaveVisualData(t *testing.T) {
+	for _, name := range []string{"staircase.yaml", "feedback.yaml", "nested.yaml"} {
+		t.Run(name, func(t *testing.T) {
+			file, m := buildFrom(t, documentPath(name))
+
+			visual, err := file.Table("attribute_visual_datas")
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			owners := make(map[int64]bool)
+			for _, s := range m.Sectors() {
+				owners[s.Diagram] = true
+			}
+			if len(owners) == 0 {
+				t.Fatal("в собранном файле нет ни одной диаграммы с сегментами")
+			}
+
+			for owner := range owners {
+				if _, ok := visual.First(rsf.Eq("ELEMENT_ID", fmt.Sprint(owner))); !ok {
+					t.Errorf("владелец диаграммы %d рисует сегменты, но строки F_VISUAL_DATA у него нет: Ramus не покажет ни одного", owner)
+				}
+			}
+		})
+	}
+}
+
+// crosspointViolation — номер узла, доставшийся геометрически разным точкам
+// одной диаграммы.
+type crosspointViolation struct {
+	diagram, crosspoint int64
+	points              [][2]float64
+}
+
+// crosspointViolations ищет нарушения инварианта «узел — одна точка».
+//
+// Узел у Ramus — именно точка, а не метка: два сегмента, делящие номер, обязаны
+// сходиться в одной координате. Номер, стоящий у двух разных мест диаграммы,
+// противоречив, и рисунок по нему не строится.
+//
+// Номер, общий у точек **разных** диаграмм, нарушением не является: так сшиты
+// уровни (фича 006), и в «Юбке» таких узлов большинство. Поэтому ключ —
+// диаграмма плюс номер.
+func crosspointViolations(m *rsf.Model) []crosspointViolation {
+	type key struct{ diagram, crosspoint int64 }
+
+	// Конец сегмента лежит в крайней точке ломаной: начало — в первой,
+	// конец — в последней.
+	seen := make(map[key][][2]float64)
+	var order []key
+	for _, s := range m.Sectors() {
+		if len(s.Points) < 2 {
+			continue
+		}
+		ends := []struct {
+			border *rsf.Border
+			point  rsf.Point
+		}{
+			{s.Start, s.Points[0]},
+			{s.End, s.Points[len(s.Points)-1]},
+		}
+		for _, e := range ends {
+			if e.border == nil || e.border.Crosspoint < 0 {
+				continue
+			}
+			k := key{s.Diagram, e.border.Crosspoint}
+			if _, known := seen[k]; !known {
+				order = append(order, k)
+			}
+			seen[k] = append(seen[k], [2]float64{e.point.X, e.point.Y})
+		}
+	}
+
+	var out []crosspointViolation
+	for _, k := range order {
+		points := seen[k]
+		for _, p := range points[1:] {
+			if p != points[0] {
+				out = append(out, crosspointViolation{k.diagram, k.crosspoint, points})
+				break
+			}
+		}
+	}
+	return out
+}
+
+// TestCrosspointIsOnePointInRamusFiles — мера инварианта.
+//
+// Проверяется не наш код, а утверждение о формате: если бы Ramus допускал
+// номер узла у двух разных точек диаграммы, требовать этого от генератора было
+// бы нечем. Три модели, 255 узлов, ноль нарушений — утверждение измерено.
+func TestCrosspointIsOnePointInRamusFiles(t *testing.T) {
+	for _, name := range []string{"тест.rsf", "ИзготовлениеЮбки.rsf", "ФормированиеТП.rsf"} {
+		t.Run(name, func(t *testing.T) {
+			file, err := rsf.Open(examplePath(name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			m, err := rsf.NewModel(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, v := range crosspointViolations(m) {
+				t.Errorf("диаграмма %d, узел %d стоит у разных точек: %v — значит инвариант не инвариант",
+					v.diagram, v.crosspoint, v.points)
+			}
+		})
+	}
+}
+
+// TestCrosspointIsOnePoint — тот же инвариант на наших файлах.
+//
+// Нарушают его ветвящиеся потоки: поток, приходящий с края листа к трём
+// работам, мы рисуем тремя отдельными линиями, а номер узла даём один — он
+// вычисляется по потоку, работе и стороне и потому у всех трёх совпадает.
+// Три точки под одним номером противоречивы (FR-004, FR-005).
+func TestCrosspointIsOnePoint(t *testing.T) {
+	documents := []string{
+		examplePath("skirt.yaml"),
+		documentPath("staircase.yaml"),
+		documentPath("feedback.yaml"),
+		documentPath("nested.yaml"),
+	}
+	for _, path := range documents {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+			for _, v := range crosspointViolations(m) {
+				t.Errorf("диаграмма %d, узел %d стоит у %d разных точек: %v",
+					v.diagram, v.crosspoint, len(v.points), v.points)
+			}
+		})
+	}
+}
