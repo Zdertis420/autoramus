@@ -74,6 +74,12 @@ func buildFunction(c cursor) (*Function, []*Link) {
 		Pos:  c.pos(),
 	}
 
+	// Туннели читаются тем же списком, что и ICOM, но связей не дают: они
+	// говорят о связи, которая уже объявлена выше, а не заводят новую.
+	for _, it := range c.list("tunnel") {
+		f.Tunnel = append(f.Tunnel, it.ref())
+	}
+
 	var links []*Link
 	for _, side := range []string{SideIn, SideControl, SideMechanism} {
 		for _, it := range c.list(side) {

@@ -80,13 +80,13 @@ func TestTreeNodesAreOnePoint(t *testing.T) {
 			layout.Apply(m)
 
 			for _, a := range m.Layout.Arrows {
-				if written[a.Flow.Name] {
-					continue // геометрию писал автор, форма не наша
-				}
 				// Ключ — диаграмма и имя узла: одно имя на разных диаграммах
 				// означает сшивку уровней, а не одну точку.
 				at := make(map[string][2]float64)
 				for _, s := range a.Segments {
+					if written[authoredKey(a.Flow.Name, s)] {
+						continue // геометрию писал автор, форма не наша
+					}
 					ends := []struct {
 						e *ir.Endpoint
 						p ir.Point

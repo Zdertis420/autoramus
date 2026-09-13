@@ -91,15 +91,20 @@ func TestPartialOverride(t *testing.T) {
 	}
 }
 
-// pinArrow закрепляет за потоком геометрию стрелки, как это делает автор.
-func pinArrow(m *ir.Model, flow string, points ...float64) {
+// pinArrow закрепляет за потоком геометрию одного сегмента на названной
+// диаграмме, как это делает автор. Пустое имя диаграммы — контекстная A-0.
+func pinArrow(m *ir.Model, flow, diagram, to string, points ...float64) {
 	if m.Layout == nil {
 		m.Layout = &ir.Layout{Path: "/layout"}
 	}
 	seg := &ir.Segment{
-		On:   ir.Ref{Name: "корень", Path: "/layout/arrows/0/segments/0/on"},
-		From: &ir.Endpoint{Border: ir.BorderLeft},
-		To:   &ir.Endpoint{Function: ir.Ref{Name: "первая"}, Side: ir.SideIn},
+		On:      ir.Ref{Name: diagram, Path: "/layout/arrows/0/segments/0/on"},
+		Context: diagram == "",
+		From:    &ir.Endpoint{Border: ir.BorderLeft},
+		To:      &ir.Endpoint{Function: ir.Ref{Name: to}, Side: ir.SideIn},
+	}
+	if seg.Context {
+		seg.On = ir.Ref{Name: m.Name.Name, Path: seg.On.Path}
 	}
 	for i := 0; i+1 < len(points); i += 2 {
 		seg.Points = append(seg.Points, ir.Point{
@@ -120,22 +125,47 @@ func pinArrow(m *ir.Model, flow string, points ...float64) {
 // использовал.
 func TestArrowOverrideWins(t *testing.T) {
 	m := modelOf(t, example("skirt.yaml"))
-	pinArrow(m, "Ткань", 7, 100, 200, 100)
+	pinArrow(m, "Ткань", "Изготовление юбки", "Раскрой материала", 7, 100, 200, 100)
 
 	layout.Apply(m)
 
 	arrow := arrowOf(t, m, "Ткань")
-	if len(arrow.Segments) != 1 {
-		t.Fatalf("сегментов %d, автор задал один: раскладка дописала своё", len(arrow.Segments))
-	}
-	points := arrow.Segments[0].Points
+	authored := segmentOn(t, arrow, "Изготовление юбки")
+	points := authored.Points
 	if len(points) != 2 || points[0].X.Val != 7 || points[1].X.Val != 200 {
-		t.Errorf("ломаная автора изменилась: %s", format(arrow.Segments[0]))
+		t.Errorf("ломаная автора изменилась: %s", format(authored))
 	}
 
 	// Соседний поток при этом обязан быть разложен как обычно.
 	if len(arrowOf(t, m, "Фурнитура").Segments) == 0 {
 		t.Error("соседняя стрелка осталась без геометрии")
+	}
+}
+
+// TestArrowOverrideKeepsOtherDiagrams — стрелка, описанная автором на одной
+// диаграмме, остаётся разложенной на всех остальных (SC-002).
+//
+// Прежде гранулярностью оверрайда был поток целиком по всей модели, и три
+// сегмента, описанные для A0, стирали сегмент на A-0. Стрелка пропадала из
+// файла молча, а Ramus рисовал на её месте туннельные скобки: у граничного
+// конца не оставалось пары на родительской диаграмме.
+func TestArrowOverrideKeepsOtherDiagrams(t *testing.T) {
+	free := modelOf(t, example("skirt.yaml"))
+	layout.Apply(free)
+	want := segmentOn(t, arrowOf(t, free, "Ткань"), "")
+
+	m := modelOf(t, example("skirt.yaml"))
+	pinArrow(m, "Ткань", "Изготовление юбки", "Раскрой материала", 7, 100, 200, 100)
+	layout.Apply(m)
+
+	got := segmentOn(t, arrowOf(t, m, "Ткань"), "")
+	if format(got) != format(want) {
+		t.Errorf("сегмент на A-0: %s, без оверрайда был %s", format(got), format(want))
+	}
+
+	// И он именно дописан, а не подменил авторский: сегментов стало два.
+	if n := len(arrowOf(t, m, "Ткань").Segments); n != 2 {
+		t.Errorf("сегментов %d, ожидалось два — авторский на A0 и дописанный на A-0", n)
 	}
 }
 
@@ -146,7 +176,7 @@ func TestArrowOverrideKeepsOthers(t *testing.T) {
 	layout.Apply(free)
 
 	m := modelOf(t, example("skirt.yaml"))
-	pinArrow(m, "Ткань", 7, 100, 200, 100)
+	pinArrow(m, "Ткань", "Изготовление юбки", "Раскрой материала", 7, 100, 200, 100)
 	layout.Apply(m)
 
 	for _, a := range free.Layout.Arrows {
@@ -164,5 +194,48 @@ func TestArrowOverrideKeepsOthers(t *testing.T) {
 					format(other.Segments[i]), format(a.Segments[i]))
 			}
 		}
+	}
+}
+
+// TestAuthoredFlowFullyDrawn — у потока, часть которого автор нарисовал сам,
+// в файл едут все его связи, а не только нарисованные (SC-002).
+//
+// `skirt-full.yaml` описывает «Правила изготовления» только на A0: вход с края
+// и две ветки. Связей же у потока пять — три управления на A0, вход на A0 и
+// управление корневой работы на A-0. Прежде в файл ехали три сегмента из пяти.
+func TestAuthoredFlowFullyDrawn(t *testing.T) {
+	m := modelOf(t, example("skirt-full.yaml"))
+	layout.Apply(m)
+
+	arrow := arrowOf(t, m, "Правила изготовления")
+
+	// Считаем не сегменты, а точки крепления к блокам: сегменты дерева между
+	// узлами связей не несут, и сравнивать их с числом связей нечего.
+	attached := make(map[string]bool)
+	for _, s := range arrow.Segments {
+		diagram := s.On.Name
+		if s.Context {
+			diagram = "" // контекстная A-0
+		}
+		for _, e := range []*ir.Endpoint{s.From, s.To} {
+			if e != nil && e.Function.Set() {
+				attached[diagram+"/"+e.Function.Name+"/"+e.Side] = true
+			}
+		}
+	}
+
+	want := []string{
+		"/Изготовление юбки/control", // A-0: то, что пропадало
+		"Изготовление юбки/Раскрой материала/control",
+		"Изготовление юбки/Сшивание деталей/control",
+		"Изготовление юбки/Добавление фурнитуры/control",
+	}
+	for _, w := range want {
+		if !attached[w] {
+			t.Errorf("нет крепления «%s»: стрелка не доехала", w)
+		}
+	}
+	if len(attached) != len(want) {
+		t.Errorf("креплений %d, ожидалось %d: %v", len(attached), len(want), attached)
 	}
 }

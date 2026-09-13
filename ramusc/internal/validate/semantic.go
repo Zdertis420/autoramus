@@ -35,9 +35,11 @@ func Semantic(m *ir.Model) diag.List {
 	c.collectFunctions()
 	c.checkHierarchy()
 	c.collectLinks()
+	c.checkDuplicateLinks()
 	c.checkICOM()
 	c.checkBalance()
 	c.checkDecomposition()
+	c.checkTunnels()
 	c.checkUnusedFlows()
 	c.checkStreams()
 	c.checkTypes()
@@ -457,6 +459,77 @@ func (c *checker) checkBalance() {
 				cons.fn.Name.Name, cons.flow.Name, cons.side, diagram, sideList(sides)))
 		}
 	}
+
+	c.checkEscapes()
+}
+
+// checkEscapes — недостающая половина баланса: со стороны производителя.
+//
+// checkBalance выше идёт от потребителя: поток, который потребляют, должен кто-то
+// выдавать. Обратный случай до сих пор не проверялся, а он такой же: поток,
+// который на диаграмме произвели и никто не потребил, уходит за край листа — и
+// значит обязан быть выходом работы, которой эта диаграмма принадлежит. Иначе
+// конец на краю остаётся без пары на родительской диаграмме, и Ramus рисует его
+// в скобках. Именно так `skirt-full.yaml` получал туннель, которого автор не
+// заказывал.
+//
+// Контекстная диаграмма исключение: над ней уровня нет, и выход модели уходит
+// наружу по определению.
+func (c *checker) checkEscapes() {
+	for _, f := range c.m.Functions {
+		if !c.canonical(f) {
+			continue
+		}
+		diagram, ok := c.diagram(f)
+		if !ok || diagram == "" {
+			continue // контекстная диаграмма: выше некуда
+		}
+		owner, ok := c.functions[diagram]
+		if !ok {
+			continue
+		}
+
+		seen := make(map[string]bool)
+		for _, l := range c.linksFrom[f.Name.Name] {
+			flow := l.Flow.Name
+			if flow == "" || seen[flow] {
+				continue
+			}
+			if _, declared := c.flows[flow]; !declared {
+				continue // о неизвестном потоке уже сказано
+			}
+			seen[flow] = true
+
+			if c.consumedOn(diagram, flow) || c.outputs[diagram][flow] {
+				continue
+			}
+			if c.tunnelled(owner, flow) {
+				continue // автор сказал: эта стрелка наверх намеренно не идёт
+			}
+			c.add(diag.New(diag.CodeFlowEscapesDiagram, l.Flow.Pos, l.Flow.Path,
+				"поток «%s» выходит из работы «%s», на %s его никто не потребляет, "+
+					"и у работы «%s» такого выхода нет: стрелка уйдёт за край листа "+
+					"и оборвётся. Добавьте поток в out работы «%s» либо назовите его "+
+					"в её tunnel",
+				flow, f.Name.Name, diagramIn(diagram), diagram, diagram))
+		}
+	}
+}
+
+// consumedOn сообщает, что поток потребляет хоть одна работа этой диаграммы.
+func (c *checker) consumedOn(diagram, flow string) bool {
+	for _, f := range c.m.Functions {
+		if !c.canonical(f) {
+			continue
+		}
+		if d, ok := c.diagram(f); !ok || d != diagram {
+			continue
+		}
+		if len(c.inputs[f.Name.Name][flow]) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // checkDecomposition — баланс сверху вниз, вторая половина правила.
@@ -469,9 +542,15 @@ func (c *checker) checkBalance() {
 // `Фурнитура` в добавление фурнитуры, управление ветвится на все три работы,
 // каждый механизм доходит до своей.
 //
-// Проверяются только работы с декомпозицией: у листа диаграммы нет. Ветка DFD
-// пропускается — там нет ICOM, и переносить управления с механизмами на неё
-// не на что.
+// Проверяются только работы с декомпозицией: у листа диаграммы нет.
+//
+// Ветка DFD прежде пропускалась целиком — «там нет ICOM, и переносить
+// управления с механизмами не на что». Пропуск оказался дорогим: четыре ICOM
+// работы с DFD-декомпозицией упирались в блок, внутри которого продолжения нет,
+// и Ramus рисовал у них туннельные скобки. Молча, потому что сказать было
+// некому. Теперь спрос одинаков со всех, а намеренный туннель автор объявляет
+// полем tunnel — тем и отличается «я так задумал» от «я забыл дописать
+// декомпозицию».
 func (c *checker) checkDecomposition() {
 	children := make(map[string][]*ir.Function, len(c.functions))
 	for _, f := range c.m.Functions {
@@ -484,7 +563,7 @@ func (c *checker) checkDecomposition() {
 	}
 
 	for _, p := range c.m.Functions {
-		if !c.canonical(p) || p.KindName() == ir.KindDFD {
+		if !c.canonical(p) {
 			continue
 		}
 		kids := children[p.Name.Name]
@@ -492,9 +571,21 @@ func (c *checker) checkDecomposition() {
 			continue
 		}
 
+		// Декомпозиция DFD — особый случай, и не потому, что там нет ICOM, а
+		// потому, что граничных стрелок на диаграмме потоков данных не
+		// рисуется вовсе: цеплять их не к чему — у внешней сущности и
+		// хранилища сторон ICOM нет. Значит любая стрелка работы с такой
+		// декомпозицией внутрь не идёт и на родительской диаграмме будет в
+		// скобках. Это законно, но автор должен сказать об этом сам: забытая
+		// декомпозиция выглядела бы ровно так же.
+		if p.KindName() == ir.KindDFD {
+			c.checkDFDTunnels(p)
+			continue
+		}
+
 		seen := make(map[string]bool)
 		for _, l := range c.linksTo[p.Name.Name] {
-			if !c.decomposable(l, seen) {
+			if !c.decomposable(l, seen) || c.tunnelled(p, l.Flow.Name) {
 				continue
 			}
 			// Достаточно, чтобы поток принял хоть кто-то и хоть какой стороной:
@@ -511,7 +602,7 @@ func (c *checker) checkDecomposition() {
 
 		seen = make(map[string]bool)
 		for _, l := range c.linksFrom[p.Name.Name] {
-			if !c.decomposable(l, seen) {
+			if !c.decomposable(l, seen) || c.tunnelled(p, l.Flow.Name) {
 				continue
 			}
 			if anyChild(kids, func(kid string) bool { return c.outputs[kid][l.Flow.Name] }) {
@@ -614,4 +705,75 @@ func (c *checker) checkTypes() {
 				f.TypeName(), parent.Name.Name))
 		}
 	}
+}
+
+// checkTunnels проверяет объявления туннелей.
+//
+// Туннель — утверждение о стрелке, которая уже объявлена в ICOM этой же работы:
+// «она намеренно не идёт вглубь». Назвать поток, которого у работы нет, значит
+// туннелировать несуществующее — скорее всего опечатка в имени.
+func (c *checker) checkTunnels() {
+	for _, f := range c.m.Functions {
+		if !c.canonical(f) {
+			continue
+		}
+		name := f.Name.Name
+		seen := make(map[string]ir.Ref, len(f.Tunnel))
+		for _, ref := range f.Tunnel {
+			if !c.flow(ref, "имя потока") {
+				continue
+			}
+			c.used[ref.Name] = true
+
+			if first, dup := seen[ref.Name]; dup {
+				c.add(diag.New(diag.CodeDuplicateFlow, ref.Pos, ref.Path,
+					"поток «%s» назван туннельным дважды: первый раз в строке %d",
+					ref.Name, first.Pos.Line))
+				continue
+			}
+			seen[ref.Name] = ref
+
+			if len(c.inputs[name][ref.Name]) == 0 && !c.outputs[name][ref.Name] {
+				c.add(diag.New(diag.CodeUnknownFlow, ref.Pos, ref.Path,
+					"поток «%s» назван туннельным у работы «%s», но к ней не приходит "+
+						"и из неё не выходит: туннелировать нечего",
+					ref.Name, name))
+			}
+		}
+	}
+}
+
+// checkDFDTunnels требует, чтобы каждая стрелка работы с DFD-декомпозицией
+// была объявлена туннельной.
+//
+// Это не придирка, а описание того, что компилятор умеет: граничных секторов на
+// диаграмме потоков данных он не пишет и писать не может — прицепить их не к
+// чему, а меры для такой геометрии нет ни в одной модели набора. Значит конец
+// на родительской диаграмме останется без пары, и Ramus нарисует скобки.
+// Написать `tunnel` — единственный способ сказать, что так и задумано.
+func (c *checker) checkDFDTunnels(p *ir.Function) {
+	seen := make(map[string]bool)
+	for _, links := range [][]*ir.Link{c.linksTo[p.Name.Name], c.linksFrom[p.Name.Name]} {
+		for _, l := range links {
+			if !c.decomposable(l, seen) || c.tunnelled(p, l.Flow.Name) {
+				continue
+			}
+			c.add(diag.New(diag.CodeFlowNotDecomposed, l.Flow.Pos, l.Flow.Path,
+				"поток «%s» связан с работой «%s», а её декомпозиция — диаграмма "+
+					"потоков данных: граничные стрелки там не рисуются, и в Ramus "+
+					"конец будет в скобках. Если так и задумано, назовите поток "+
+					"в tunnel работы «%s»",
+				l.Flow.Name, p.Name.Name, p.Name.Name))
+		}
+	}
+}
+
+// tunnelled сообщает, что автор объявил поток туннельным у этой работы.
+func (c *checker) tunnelled(f *ir.Function, flow string) bool {
+	for _, ref := range f.Tunnel {
+		if ref.Name == flow {
+			return true
+		}
+	}
+	return false
 }

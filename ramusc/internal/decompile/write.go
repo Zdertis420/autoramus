@@ -84,6 +84,7 @@ func WriteYAML(w io.Writer, m *ir.Model, opts Options) error {
 		}{
 			{"in", f.In}, {"control", f.Control},
 			{"mechanism", f.Mechanism}, {"out", f.Out},
+			{"tunnel", f.Tunnel},
 		} {
 			if len(side.flows) > 0 {
 				writeFlowList(&b, "    ", side.key, side.flows)
@@ -448,8 +449,11 @@ type functionDoc struct {
 	Control   []string `json:"control,omitempty"`
 	Out       []string `json:"out,omitempty"`
 	Mechanism []string `json:"mechanism,omitempty"`
-	Note      string   `json:"note,omitempty"`
-	Raw       []rawDoc `json:"raw,omitempty"`
+	// Tunnel — потоки, намеренно не переходящие в декомпозицию (Р19). Идёт
+	// после сторон ICOM: сперва что за стрелки, потом что с ними не так.
+	Tunnel []string `json:"tunnel,omitempty"`
+	Note   string   `json:"note,omitempty"`
+	Raw    []rawDoc `json:"raw,omitempty"`
 }
 
 type linkDoc struct {
@@ -531,6 +535,9 @@ func newDocument(m *ir.Model) (*document, error) {
 			Type: f.Type.Raw,
 			Note: f.Note,
 			Raw:  newRaw(f.Raw),
+		}
+		for _, ref := range f.Tunnel {
+			doc.Functions[i].Tunnel = appendFlow(doc.Functions[i].Tunnel, ref.Raw)
 		}
 		if f.Name.Path != "" {
 			byPath[f.Name.Path] = &doc.Functions[i]

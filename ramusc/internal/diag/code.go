@@ -128,4 +128,13 @@ const (
 	CodeBadEndpoint Code = "bad_endpoint"
 	// CodeLonelyNode — узел стрелки упомянут один раз и ничего не сшивает.
 	CodeLonelyNode Code = "lonely_node"
+	// CodeIncompleteArrowLayout — автор нарисовал поток на диаграмме, но не все
+	// его связи там: непокрытая связь в файл не поедет.
+	CodeIncompleteArrowLayout Code = "incomplete_arrow_layout"
+	// CodeDuplicateLink — связь записана дважды: и списками ICOM, и в links.
+	// Предупреждение: в файл всё равно поедет одна стрелка.
+	CodeDuplicateLink Code = "duplicate_link"
+	// CodeFlowEscapesDiagram — поток произведён на диаграмме, никем там не
+	// потреблён и уходит за край, но у работы-владельца такого выхода нет.
+	CodeFlowEscapesDiagram Code = "flow_escapes_diagram"
 )

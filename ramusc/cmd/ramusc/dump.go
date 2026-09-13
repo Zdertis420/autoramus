@@ -109,6 +109,33 @@ func writeDump(w io.Writer, filename string, m *rsf.Model) {
 			fmt.Fprintf(w, "    %s %s: %s\n", mark, pad(side.ICOM(), 9), list)
 		}
 	}
+
+	// Раздел идёт последним и намеренно: первые три повторяют вывод
+	// algodemo/rsf.py слово в слово, и сдвигать их нельзя — на этом держится
+	// сверка диффом. Туннели же нужны не для сверки, а автору: они отвечают на
+	// вопрос «почему у меня скобки», не открывая Ramus.
+	fmt.Fprintf(w, "\nТУННЕЛИ (концы в скобках)\n")
+	tunnels := m.Tunnels()
+	if len(tunnels) == 0 {
+		fmt.Fprintf(w, "  туннелей нет\n")
+	}
+	for _, t := range tunnels {
+		where := "конец "
+		if t.Start {
+			where = "начало"
+		}
+		diagram, ok := names[t.Diagram]
+		if !ok {
+			diagram = fmt.Sprint(t.Diagram)
+		}
+		fmt.Fprintf(w, "  %s  %s  узел#%s вход=%d выход=%d  поток=%s диаграмма=%s\n",
+			padLeft(fmt.Sprint(t.Sector), 4),
+			where,
+			pad(fmt.Sprint(t.Crosspoint), 5),
+			t.Ins, t.Outs,
+			pad(quote(streamNames[t.Stream]), 32),
+			quote(diagram))
+	}
 }
 
 // end описывает конец сегмента так же, как это делает эталонный дамп.

@@ -65,6 +65,7 @@ func build(m *rsf.Model, carried map[int64]bool) (*ir.Model, error) {
 
 	ordered := treeOrder(functions, root)
 	icom := m.ICOM()
+	tunnels := tunnelsByFunction(m)
 	for i, f := range ordered {
 		path := fmt.Sprintf("/functions/%d", i)
 		fn := &ir.Function{
@@ -76,6 +77,9 @@ func build(m *rsf.Model, carried map[int64]bool) (*ir.Model, error) {
 		}
 		if t := elementType(f.Type); t != "" {
 			fn.Type = ref(t, path+"/type")
+		}
+		for j, flow := range tunnels[f.ID] {
+			fn.Tunnel = append(fn.Tunnel, ref(flow, fmt.Sprintf("%s/tunnel/%d", path, j)))
 		}
 		fn.Raw = rawOf(m, f.ID)
 		carried[f.ID] = true
@@ -92,6 +96,56 @@ func build(m *rsf.Model, carried map[int64]bool) (*ir.Model, error) {
 	out.Layout = layout(m, ordered, byID, root, carried)
 	out.Index()
 	return out, nil
+}
+
+// tunnelsByFunction собирает объявления `tunnel` по тому, что нарисовано.
+//
+// Признака туннеля в файле нет — он вычисляется по наполнению узла, и считает
+// это rsf.Tunnels. Переносятся только концы, прицепленные к блоку: им в языке
+// соответствует ICOM работы, и сказать «эта стрелка вглубь не идёт» есть о чём.
+//
+// Конец на краю листа дочерней диаграммы тоже бывает туннельным, но означает он
+// другое — работа потребляет поток, которого родитель не даёт, — и словом
+// `tunnel` не выражается. Такой конец здесь не переносится; в единственной
+// модели набора, где он есть (`ФормированиеТП.rsf`), файл и так отвергается
+// по другой причине.
+//
+// Порядок — порядок секторов: обход отображения дал бы разный документ на одном
+// файле, а вывод декомпилятора канонический (Р14).
+func tunnelsByFunction(m *rsf.Model) map[int64][]string {
+	names := make(map[int64]string)
+	for _, s := range m.Streams() {
+		names[s.ID] = s.Name
+	}
+
+	sectors := make(map[int64]rsf.Sector)
+	for _, s := range m.Sectors() {
+		sectors[s.ID] = s
+	}
+
+	out := make(map[int64][]string)
+	seen := make(map[[2]int64]bool)
+	for _, t := range m.Tunnels() {
+		s := sectors[t.Sector]
+		b := s.End
+		if t.Start {
+			b = s.Start
+		}
+		if !b.OnFunction() {
+			continue
+		}
+		flow, ok := names[t.Stream]
+		if !ok || flow == "" {
+			continue
+		}
+		key := [2]int64{b.Function, t.Stream}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out[b.Function] = append(out[b.Function], flow)
+	}
+	return out
 }
 
 // findRoot ищет работу, лежащую прямо под элементом модели: это блок

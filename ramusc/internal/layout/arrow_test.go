@@ -27,20 +27,37 @@ func documents() []string {
 		example("skirt-full.yaml"),
 		document("feedback.yaml"),
 		document("nested.yaml"),
+		document("two-sides.yaml"),
+		document("dfd-tunnel.yaml"),
 	}
 }
 
-// authored отмечает потоки, геометрию которых автор задал сам. Их раскладка не
-// трогает, и требовать от них своих правил нельзя.
+// authored отмечает пары «поток + диаграмма», геометрию которых автор задал
+// сам. Их раскладка не трогает, и требовать от них своих правил нельзя.
+//
+// Пара, а не поток целиком: единица оверрайда — пара, и сегменты того же
+// потока на других диаграммах раскладка пишет сама. Отмечать весь поток
+// значило бы снимать проверку и с них.
 func authored(m *ir.Model) map[string]bool {
 	out := make(map[string]bool)
 	if m.Layout == nil {
 		return out
 	}
 	for _, a := range m.Layout.Arrows {
-		out[a.Flow.Name] = true
+		for _, s := range a.Segments {
+			out[authoredKey(a.Flow.Name, s)] = true
+		}
 	}
 	return out
+}
+
+// authoredKey — ключ пары. Контекстная диаграмма зовётся пустой строкой.
+func authoredKey(flow string, s *ir.Segment) string {
+	diagram := s.On.Name
+	if s.Context {
+		diagram = ""
+	}
+	return flow + "\x00" + diagram
 }
 
 // arrowOf находит стрелку потока.
@@ -108,13 +125,14 @@ func TestSegmentsAreWellFormed(t *testing.T) {
 			layout.Apply(m)
 
 			for _, a := range m.Layout.Arrows {
-				if written[a.Flow.Name] {
-					// Геометрию этого потока написал автор. Узлы ветвления в
-					// языке есть, и требовать от его записи нашей формы
-					// нельзя: она и не наша.
-					continue
-				}
 				for i, s := range a.Segments {
+					if written[authoredKey(a.Flow.Name, s)] {
+						// Этот сегмент написал автор. Узлы ветвления в языке
+						// есть, и требовать от его записи нашей формы нельзя:
+						// она и не наша. Сегменты того же потока на других
+						// диаграммах писала раскладка, и с них спрос прежний.
+						continue
+					}
 					where := fmt.Sprintf("«%s», сегмент %d", a.Flow.Name, i)
 					if s.On.Name == "" {
 						t.Errorf("%s: не назван диаграммой", where)
@@ -258,3 +276,50 @@ func TestContextDiagram(t *testing.T) {
 // near сравнивает координаты с допуском: они считаются в плавающей точке, и
 // требовать побитового равенства от суммы долей нельзя.
 func near(a, b float64) bool { return math.Abs(a-b) < 1e-9 }
+
+// TestDuplicateLinkCollapses — связь, записанная и списками ICOM, и в links,
+// даёт одну стрелку, а не две (FR-005).
+//
+// Проверяется заодно и место на стороне блока: схлопывать надо до раздачи
+// мест, иначе сторона делится на n+1 частей при завышенном n и одиночная
+// стрелка садится не в середину, а в треть.
+func TestDuplicateLinkCollapses(t *testing.T) {
+	m := modelOf(t, filepath.Join("..", "..", "..", "specs", "008-arrow-tunnels-duplicates",
+		"evidence", "duplicate-link.yaml"))
+	layout.Apply(m)
+
+	arrow := arrowOf(t, m, "Заготовка")
+	if len(arrow.Segments) != 1 {
+		t.Fatalf("сегментов %d, связь одна: %v", len(arrow.Segments), arrow.Segments)
+	}
+
+	second := boxes(m)["Вторая"]
+	at := arrow.Segments[0].Points[len(arrow.Segments[0].Points)-1]
+	if want := second.Y.Val + second.Height.Val/2; !near(at.Y.Val, want) {
+		t.Errorf("вход «Второй» на y=%g, ожидалась середина стороны y=%g: "+
+			"место считалось на две стрелки вместо одной", at.Y.Val, want)
+	}
+}
+
+// TestDifferentSidesAreNotDuplicates — один поток к той же работе двумя
+// сторонами даёт две стрелки (FR-007).
+//
+// Сторона приёмника входит в ключ схлопывания именно ради этого случая:
+// «Заготовка» и подаётся на вход, и управляет — это две разные стрелки, и
+// склеить их значило бы потерять управление.
+func TestDifferentSidesAreNotDuplicates(t *testing.T) {
+	m := modelOf(t, document("two-sides.yaml"))
+	layout.Apply(m)
+
+	sides := make(map[string]bool)
+	for _, s := range arrowOf(t, m, "Заготовка").Segments {
+		if s.To != nil && s.To.Function.Name == "Вторая" {
+			sides[s.To.Side] = true
+		}
+	}
+	for _, want := range []string{ir.SideIn, ir.SideControl} {
+		if !sides[want] {
+			t.Errorf("нет стрелки «Заготовки» к «Второй» стороной %s", want)
+		}
+	}
+}

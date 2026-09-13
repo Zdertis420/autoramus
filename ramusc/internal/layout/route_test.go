@@ -101,10 +101,10 @@ func TestGeometryIsLawful(t *testing.T) {
 
 			blocks := blocksByDiagram(m)
 			for _, a := range m.Layout.Arrows {
-				if written[a.Flow.Name] {
-					continue // геометрия автора: она его и ответственность
-				}
 				for _, s := range a.Segments {
+					if written[authoredKey(a.Flow.Name, s)] {
+						continue // геометрия автора: она его и ответственность
+					}
 					own := blocks[diagramOf(s)]
 					checkSegment(t, a.Flow.Name, s, own, !blocksOverlap(own))
 				}

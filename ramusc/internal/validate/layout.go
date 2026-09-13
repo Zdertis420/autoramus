@@ -37,6 +37,87 @@ func (c *checker) checkLayout() {
 	for _, a := range l.Arrows {
 		c.flow(a.Flow, "имя потока")
 		c.checkSegments(a)
+		c.checkCoverage(a)
+	}
+}
+
+// checkCoverage требует, чтобы нарисованное автором покрывало объявленное им же.
+//
+// Единица оверрайда — пара «поток + диаграмма»: раскладка не трогает поток на
+// той диаграмме, где автор описал хоть один его сегмент. Значит на такой
+// диаграмме за все связи потока отвечает автор, и связь, которую он не нарисовал,
+// просто не попадёт в файл. Молчать об этом нельзя — стрелка пропадала бы ровно
+// так же, как пропадала прежде из-за оверрайда на весь поток.
+//
+// Мера покрытия — точка крепления, а не связь: у потребителя должен быть
+// сегмент, приходящий к нему нужной стороной, у производителя — сегмент,
+// выходящий из него. Так проверка не пересказывает правила сборки стрелок из
+// раскладки и не расходится с ними при следующей правке.
+func (c *checker) checkCoverage(a *ir.ArrowLayout) {
+	flow := a.Flow.Name
+	if flow == "" {
+		return
+	}
+
+	// Диаграммы, на которых автор взялся рисовать этот поток. Контекстная
+	// зовётся пустой строкой — так же, как её называет c.diagram.
+	authored := make(map[string]bool)
+	for _, s := range a.Segments {
+		if s.Context {
+			authored[""] = true
+			continue
+		}
+		authored[s.On.Name] = true
+	}
+
+	// Что автор нарисовал: концы, прицепленные к блокам.
+	type attachment struct{ diagram, function, side string }
+	covered := make(map[attachment]bool)
+	for _, s := range a.Segments {
+		diagram := s.On.Name
+		if s.Context {
+			diagram = ""
+		}
+		for _, e := range []*ir.Endpoint{s.From, s.To} {
+			if e == nil || e.Kind() != ir.EndpointFunction {
+				continue
+			}
+			covered[attachment{diagram, e.Function.Name, e.Side}] = true
+		}
+	}
+
+	for _, f := range c.m.Functions {
+		if !c.canonical(f) {
+			continue
+		}
+		diagram, ok := c.diagram(f)
+		if !ok || !authored[diagram] {
+			continue
+		}
+		name := f.Name.Name
+
+		// Работа, которая сама производит и сама потребляет поток, стрелки не
+		// даёт вовсе: рисовать петлю из блока в него же раскладка не берётся.
+		if c.outputs[name][flow] && len(c.inputs[name][flow]) > 0 {
+			continue
+		}
+
+		for side := range c.inputs[name][flow] {
+			if covered[attachment{diagram, name, side}] {
+				continue
+			}
+			c.add(diag.New(diag.CodeIncompleteArrowLayout, a.Flow.Pos, a.Flow.Path,
+				"на %s сегменты потока «%s» не доходят до работы «%s» стороной %s: "+
+					"взявшись рисовать поток на диаграмме, опишите все его связи там",
+				diagramIn(diagram), flow, name, side))
+		}
+
+		if c.outputs[name][flow] && !covered[attachment{diagram, name, ir.SideOut}] {
+			c.add(diag.New(diag.CodeIncompleteArrowLayout, a.Flow.Pos, a.Flow.Path,
+				"на %s сегменты потока «%s» не выходят из работы «%s»: "+
+					"взявшись рисовать поток на диаграмме, опишите все его связи там",
+				diagramIn(diagram), flow, name))
+		}
 	}
 }
 

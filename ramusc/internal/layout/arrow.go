@@ -85,8 +85,22 @@ func diagramArrows(m *ir.Model, d diagram) []*arrow {
 		}
 	}
 
+	// Одна и та же связь выразима дважды: списками ICOM у обеих работ и записью
+	// в links (Р7). Половинки ICOM и явная запись приходят сюда по разным
+	// веткам, и без ключа стрелка рисовалась бы двумя параллельными линиями с
+	// одной подписью, да ещё и с общими кросспоинтами — Ramus считал бы их
+	// одним узлом с двумя секторами. Об этом же скажет валидатор
+	// (duplicate_link), но сказать мало: файл должен быть верным.
+	type linkKey struct{ flow, from, fromSide, to, toSide string }
+
 	var out []*arrow
+	seen := make(map[linkKey]bool)
 	add := func(flow string, from, to end) {
+		k := linkKey{flow, from.function, from.side, to.function, to.side}
+		if seen[k] {
+			return
+		}
+		seen[k] = true
 		out = append(out, &arrow{flow: flow, diagram: d.owner, from: from, to: to})
 	}
 
@@ -221,16 +235,25 @@ func boxIndex(m *ir.Model) map[string]box {
 	return out
 }
 
+// arrowKey — пара «поток + диаграмма»: единица, которой меряется оверрайд.
+//
+// Не поток целиком: описав стрелку на одной диаграмме, автор не отказывается
+// от неё на всех остальных. Прежде отказывался, и сегмент на A-0 пропадал из
+// файла молча.
+//
+// И не отдельный сегмент: стрелка на диаграмме — дерево с общей магистралью и
+// общими узлами, строится целиком или не строится. Авторское дерево и
+// дописанная раскладкой ветка дали бы на одной диаграмме два входа с края —
+// ровно тот рисунок, который убирало граничное ветвление.
+type arrowKey struct{ flow, diagram string }
+
 // placeArrows дописывает геометрию стрелкам, которых не задал автор.
 //
 // Стрелка в языке — это поток со всеми своими сегментами, поэтому сегменты
 // группируются по имени потока, а порядок записей берётся из секции flows:
 // обход отображения дал бы разные файлы на одном входе.
 func placeArrows(m *ir.Model) {
-	known := make(map[string]bool, len(m.Layout.Arrows))
-	for _, a := range m.Layout.Arrows {
-		known[a.Flow.Name] = true
-	}
+	known := authored(m)
 
 	boxes := boxIndex(m)
 	blocks := make(map[string][]box)
@@ -240,9 +263,11 @@ func placeArrows(m *ir.Model) {
 
 	var free []*arrow
 	for _, a := range arrows(m) {
-		if known[a.flow] {
-			// Автор задал геометрию этого потока сам — не трогаем ни одного
-			// его сегмента (Р2), и ветвление к нему тоже не применяется.
+		if known[arrowKey{flow: a.flow, diagram: a.diagram}] {
+			// Автор нарисовал этот поток на этой диаграмме сам — не трогаем
+			// ни одного его сегмента здесь (Р2), и ветвление к нему тоже не
+			// применяется. На прочих диаграммах поток раскладывается как
+			// обычно.
 			continue
 		}
 		free = append(free, a)
@@ -253,22 +278,59 @@ func placeArrows(m *ir.Model) {
 		drawn[a.flow] = append(drawn[a.flow], a)
 	}
 
+	// Запись потока, которую автор уже завёл: дописывать будем в неё, а не
+	// рядом. Две записи об одном потоке не запрещены, но читать такой документ
+	// незачем — сегменты одной стрелки должны лежать вместе.
+	existing := make(map[string]*ir.ArrowLayout, len(m.Layout.Arrows))
+	for _, a := range m.Layout.Arrows {
+		if _, ok := existing[a.Flow.Name]; !ok {
+			existing[a.Flow.Name] = a
+		}
+	}
+
 	for _, flow := range m.Flows {
 		segments := drawn[flow.Name]
 		if len(segments) == 0 {
 			continue
 		}
-		path := fmt.Sprintf("/layout/arrows/%d", len(m.Layout.Arrows))
-		out := &ir.ArrowLayout{
-			Flow: ir.Ref{Name: flow.Name, Path: path + "/flow"},
-			Path: path,
+
+		out, ok := existing[flow.Name]
+		if !ok {
+			path := fmt.Sprintf("/layout/arrows/%d", len(m.Layout.Arrows))
+			out = &ir.ArrowLayout{
+				Flow: ir.Ref{Name: flow.Name, Path: path + "/flow"},
+				Path: path,
+			}
+			m.Layout.Arrows = append(m.Layout.Arrows, out)
 		}
-		for i, a := range segments {
-			out.Segments = append(out.Segments, segmentOf(m, a, boxes, blocks[a.diagram],
-				fmt.Sprintf("%s/segments/%d", path, i)))
+
+		// Дописанное идёт после авторского: индексы и координаты того, что
+		// автор задал сам, не двигаются (Р2).
+		for _, a := range segments {
+			path := fmt.Sprintf("%s/segments/%d", out.Path, len(out.Segments))
+			out.Segments = append(out.Segments, segmentOf(m, a, boxes, blocks[a.diagram], path))
 		}
-		m.Layout.Arrows = append(m.Layout.Arrows, out)
 	}
+}
+
+// authored отмечает пары «поток + диаграмма», которые автор нарисовал сам.
+//
+// Диаграмма зовётся по своей работе, а контекстная A-0 — по имени модели, и
+// отличить её от декомпозиции корневой работы можно только по пометке Context.
+// Внутри раскладки контекстная диаграмма зовётся пустой строкой — так же, как
+// в arrow.diagram.
+func authored(m *ir.Model) map[arrowKey]bool {
+	out := make(map[arrowKey]bool)
+	for _, a := range m.Layout.Arrows {
+		for _, s := range a.Segments {
+			diagram := s.On.Name
+			if s.Context {
+				diagram = ""
+			}
+			out[arrowKey{flow: a.Flow.Name, diagram: diagram}] = true
+		}
+	}
+	return out
 }
 
 // diagramBoxes отдаёт блоки одной диаграммы: то, сквозь что стрелке идти
