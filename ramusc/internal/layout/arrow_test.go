@@ -20,6 +20,18 @@ func document(name string) string {
 }
 
 // documents — набор, по которому идут проверки, верные для любой модели.
+//
+// Три последних добавлены фичей каналов. Прежний набор наложений не содержал
+// вовсе — ни одного на шести документах, — и проверка на нём подтверждала бы не
+// работу разведения, а собственную слепоту.
+//
+// `examples/chakhokhbili.yaml` в этот перечень не входит, хотя наложений в нём
+// больше, чем во всех пробах вместе. Причина названа и временна: в нём есть
+// **другой** дефект — связь, перешагивающая один блок лестницы, идёт сквозь
+// него, — и `TestGeometryIsLawful` на нём краснеет. Дефект к наложениям
+// отношения не имеет и чинится не здесь, поэтому модель подключена к проверке
+// наложений отдельным перечнем (`overlapDocuments` в channel_test.go), а в
+// общий вернётся, когда прямые связи научатся обходить блоки.
 func documents() []string {
 	return []string{
 		example("skirt.yaml"),
@@ -29,6 +41,9 @@ func documents() []string {
 		document("nested.yaml"),
 		document("two-sides.yaml"),
 		document("dfd-tunnel.yaml"),
+		document("channels-pair.yaml"),
+		document("channels-feedback.yaml"),
+		document("channels-trunk.yaml"),
 	}
 }
 

@@ -273,8 +273,22 @@ func placeArrows(m *ir.Model) {
 		free = append(free, a)
 	}
 
+	// Ломаные строятся все разом и до записи в IR: разведение по каналам
+	// (channel.go) смотрит на готовые координаты всех стрелок диаграммы сразу.
+	// Пока маршрут считался лениво, в segmentOf, увидеть их вместе было негде.
+	routed := branch(free, boxes, blocks)
+	for _, a := range routed {
+		if a.points != nil {
+			continue // сегмент дерева: его ломаная посчитана целиком в tree.go
+		}
+		from, to := ends(a, boxes)
+		a.points = route(a, from, to, blocks[a.diagram])
+	}
+
+	channels(routed, blocks, occupied(m))
+
 	drawn := make(map[string][]*arrow)
-	for _, a := range branch(free, boxes, blocks) {
+	for _, a := range routed {
 		drawn[a.flow] = append(drawn[a.flow], a)
 	}
 
@@ -308,7 +322,7 @@ func placeArrows(m *ir.Model) {
 		// автор задал сам, не двигаются (Р2).
 		for _, a := range segments {
 			path := fmt.Sprintf("%s/segments/%d", out.Path, len(out.Segments))
-			out.Segments = append(out.Segments, segmentOf(m, a, boxes, blocks[a.diagram], path))
+			out.Segments = append(out.Segments, segmentOf(m, a, path))
 		}
 	}
 }
@@ -346,7 +360,11 @@ func diagramBoxes(d diagram, boxes map[string]box) []box {
 }
 
 // segmentOf собирает сегмент: диаграмму, концы и ломаную.
-func segmentOf(m *ir.Model, a *arrow, boxes map[string]box, blocks []box, path string) *ir.Segment {
+//
+// Ломаная приходит готовой: её построил и развёл по каналам placeArrows. Здесь
+// остаётся перенос, и это намеренно — считать маршрут в тот момент, когда
+// сегмент уже пишется в IR, значило бы считать его после разведения.
+func segmentOf(m *ir.Model, a *arrow, path string) *ir.Segment {
 	seg := &ir.Segment{Path: path}
 	if a.diagram == "" {
 		// Контекстная диаграмма зовётся так же, как корневая работа, и
@@ -359,14 +377,7 @@ func segmentOf(m *ir.Model, a *arrow, boxes map[string]box, blocks []box, path s
 	seg.From = endpointOf(a.from, path+"/from")
 	seg.To = endpointOf(a.to, path+"/to")
 
-	// У сегмента дерева ломаная уже посчитана: магистраль и узлы общие для
-	// всех его ветвей, и поодиночке их не построить.
-	line := a.points
-	if line == nil {
-		from, to := ends(a, boxes)
-		line = route(a, from, to, blocks)
-	}
-	for i, p := range line {
+	for i, p := range a.points {
 		point := fmt.Sprintf("%s/points/%d", path, i)
 		seg.Points = append(seg.Points, ir.Point{
 			X:    ir.Num{Val: p.x, Set: true, Path: point + "/0"},
