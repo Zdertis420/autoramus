@@ -75,10 +75,24 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 			return fmt.Errorf("поток «%s»: стрелка есть, а самого потока в файле нет", arrow.Flow.Name)
 		}
 		nodes := newNodeIDs(c)
+		// Линии этой стрелки, по диаграммам. Точки одной стрелки, лежащие на
+		// общей прямой, обязаны нести один номер линии: на нём держится и
+		// выравнивание при перетаскивании блока, и само понимание Ramus, что
+		// перед ним одна стрелка, а не стопка совпадающих обрывков.
+		//
+		// По диаграммам, а не на всю стрелку: в «тесте» вертикаль «контроля»
+		// на родительской диаграмме несёт номер 169, а тот же x на диаграмме
+		// ребёнка — 166. Разным стрелкам общих линий не заводится и здесь.
+		byDiagram := make(map[int64]*lines)
 		for _, seg := range arrow.Segments {
 			diagram, err := diagramID(m, seg, functions)
 			if err != nil {
 				return fmt.Errorf("поток «%s»: %w", arrow.Flow.Name, err)
+			}
+			ordinates, drawn := byDiagram[diagram]
+			if !drawn {
+				ordinates = newLines(c)
+				byDiagram[diagram] = ordinates
 			}
 
 			id := next
@@ -94,6 +108,7 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 				functions:  functions,
 				counters:   c,
 				nodes:      nodes,
+				ordinates:  ordinates,
 			}); err != nil {
 				return fmt.Errorf("поток «%s»: %w", arrow.Flow.Name, err)
 			}
@@ -117,6 +132,10 @@ type sector struct {
 	// кросспоинт в файле всегда принадлежит ровно одному потоку, и имена
 	// узлов разных стрелок пересечься не могут.
 	nodes *nodeIDs
+	// ordinates — координатные линии этой стрелки на этой диаграмме. Общие для
+	// всех её секторов: номер линии и есть то, чем Ramus сшивает сегменты в
+	// одну стрелку.
+	ordinates *lines
 }
 
 // diagramID отвечает, на чьей диаграмме нарисован сегмент.
@@ -191,7 +210,7 @@ func writeSector(m *rsf.Model, s sector) error {
 
 	// Ординаты считаются на сектор: точки, лежащие на одной прямой, делят
 	// номер линии. Так это устроено в настоящих файлах.
-	ordinates := newLines(s.counters)
+	ordinates := s.ordinates
 	for i, p := range s.segment.Points {
 		rows = append(rows, struct {
 			table  string

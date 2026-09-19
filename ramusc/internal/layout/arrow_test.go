@@ -21,9 +21,14 @@ func document(name string) string {
 
 // documents — набор, по которому идут проверки, верные для любой модели.
 //
-// Три последних добавлены фичей каналов. Прежний набор наложений не содержал
-// вовсе — ни одного на шести документах, — и проверка на нём подтверждала бы не
-// работу разведения, а собственную слепоту.
+// Три документа `channels-*` добавлены фичей каналов. Прежний набор наложений
+// не содержал вовсе — ни одного на шести документах, — и проверка на нём
+// подтверждала бы не работу разведения, а собственную слепоту.
+//
+// `branch-border.yaml` добавлен фичей ветки на край листа по той же причине:
+// потока, который и потребляется внутри диаграммы, и уходит за её край, не
+// было ни в одном документе набора, и пропажу граничного сегмента не ловил
+// никто.
 //
 // `examples/chakhokhbili.yaml` в этот перечень не входит, хотя наложений в нём
 // больше, чем во всех пробах вместе. Причина названа и временна: в нём есть
@@ -44,6 +49,7 @@ func documents() []string {
 		document("channels-pair.yaml"),
 		document("channels-feedback.yaml"),
 		document("channels-trunk.yaml"),
+		document("branch-border.yaml"),
 	}
 }
 
@@ -337,4 +343,88 @@ func TestDifferentSidesAreNotDuplicates(t *testing.T) {
 			t.Errorf("нет стрелки «Заготовки» к «Второй» стороной %s", want)
 		}
 	}
+}
+
+// borderSegments отдаёт сегменты стрелки, кончающиеся на краю листа названной
+// диаграммы-декомпозиции. Контекстная A-0 не в счёт: там край листа — норма, и
+// наличие её сегмента ничего не говорит о том, сшиты ли уровни ниже.
+func borderSegments(a *ir.ArrowLayout, diagram, border string) []*ir.Segment {
+	var out []*ir.Segment
+	for _, s := range branchSegments(a, diagram) {
+		if s.To != nil && s.To.Kind() == ir.EndpointBorder && s.To.Border == border {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// TestExportedFlowReachesBorder — поток, объявленный выходом диаграммы, доходит
+// до её края, даже если внутри его кто-то потребляет.
+//
+// «Журнал» производит «Обработка», потребляет «Сборка», и он же стоит в `out` у
+// «Пробы». На A-0 он уходит из блока «Пробы» вправо, и внутри декомпозиции ему
+// обязано быть во что перейти. Прежде половинка «работа → наружу»
+// отбрасывалась, едва у потока находился потребитель, и уровни расходились
+// молча: в файле стрелка есть, а связи между уровнями нет.
+func TestExportedFlowReachesBorder(t *testing.T) {
+	m := modelOf(t, document("branch-border.yaml"))
+	layout.Apply(m)
+
+	journal := arrowOf(t, m, "журнал")
+	if got := borderSegments(journal, "Проба", ir.BorderRight); len(got) != 1 {
+		t.Errorf("сегментов «журнала» до правого края %d, ожидался один: %s",
+			len(got), formatAll(branchSegments(journal, "Проба")))
+	}
+
+	// Потребитель никуда не делся: ветка на край добавляется, а не подменяет.
+	var toBlock int
+	for _, s := range branchSegments(journal, "Проба") {
+		if s.To != nil && s.To.Kind() == ir.EndpointFunction {
+			toBlock++
+		}
+	}
+	if toBlock != 1 {
+		t.Errorf("отводов «журнала» в блоки %d, потребитель один", toBlock)
+	}
+}
+
+// TestTunnelledFlowStaysInside — туннель у владельца диаграммы отменяет ветку
+// на край.
+//
+// Автор сказал списком `tunnel`, что поток намеренно не переходит на уровень
+// выше; дорисовывать ему выход значило бы спорить с автором. Тест охраняет, а
+// не требует: он зелёный и до фичи, и обязан остаться зелёным после.
+func TestTunnelledFlowStaysInside(t *testing.T) {
+	cases := []struct{ path, flow, diagram string }{
+		{document("dfd-tunnel.yaml"), "Принятая заявка", "Приём заявок"},
+		{example("skirt-full.yaml"), "Заявка в работе", "Приём заказа"},
+	}
+	for _, c := range cases {
+		t.Run(filepath.Base(c.path), func(t *testing.T) {
+			m := modelOf(t, c.path)
+			layout.Apply(m)
+
+			arrow := arrowOf(t, m, c.flow)
+			if got := borderSegments(arrow, c.diagram, ir.BorderRight); len(got) != 0 {
+				t.Errorf("туннелированный поток «%s» дошёл до края листа: %s",
+					c.flow, formatAll(got))
+			}
+		})
+	}
+}
+
+// formatAll печатает ломаные сегментов — без них сообщение об ошибке говорит
+// «не сошлось» и молчит о том, что именно.
+func formatAll(segments []*ir.Segment) string {
+	out := ""
+	for _, s := range segments {
+		if out != "" {
+			out += "; "
+		}
+		out += format(s)
+	}
+	if out == "" {
+		return "(ни одного)"
+	}
+	return out
 }
