@@ -164,3 +164,98 @@ func TestTreeIsDeterministic(t *testing.T) {
 		}
 	}
 }
+
+// Ветвление от порта работы. Рисунок снят с `examples/ФормированиеТП.rsf`, где
+// поток «Структура программа» выходит из блока 51 в точке (345.3, 185.9), идёт
+// горизонталью до узла (400.6, 185.9) и уже из узла расходится к двум блокам.
+// Топология та же, что у граничного дерева, только корень не на краю листа, а
+// в порте блока.
+
+// TestPortTreeIsOneArrow — получателей несколько, стрелка одна.
+//
+// На `branch-border.yaml` у «журнала» два получателя: «Сборка» и правый край
+// листа. Рисовать их двумя линиями от одного порта нельзя — подпись у них одна,
+// и читаются они как две разные стрелки одного имени. Ramus в такой ситуации
+// заводит узел, и мы обязаны завести его же.
+func TestPortTreeIsOneArrow(t *testing.T) {
+	m := modelOf(t, document("branch-border.yaml"))
+	layout.Apply(m)
+
+	segments := branchSegments(arrowOf(t, m, "журнал"), "Проба")
+	const receivers = 2 // «Сборка» и край листа
+	if got, want := len(segments), receivers+1; got != want {
+		t.Fatalf("сегментов %d, ожидалось %d: голова от порта плюс по ветке на получателя",
+			got, want)
+	}
+
+	var heads, fromNode int
+	nodes := make(map[string]bool)
+	for _, s := range segments {
+		if s.From.Kind() == ir.EndpointFunction {
+			heads++
+		}
+		if s.From.Kind() == ir.EndpointNode {
+			fromNode++
+			nodes[s.From.Node.Name] = true
+		}
+		if s.To.Kind() == ir.EndpointNode {
+			nodes[s.To.Node.Name] = true
+		}
+	}
+
+	if heads != 1 {
+		t.Errorf("от порта отходит %d сегмента, а должен один: %s",
+			heads, formatAll(segments))
+	}
+	if fromNode != receivers {
+		t.Errorf("из узла выходит %d веток, получателей %d", fromNode, receivers)
+	}
+	if len(nodes) != 1 {
+		t.Errorf("узлов %d, ожидался один", len(nodes))
+	}
+}
+
+// TestPortTreeTakesOneSlot — дерево занимает на стороне блока одно место.
+//
+// Тест охраняет, а не требует, и по дороге обязан покраснеть. До фичи у
+// «Обработки» на стороне выхода две стрелки — «заготовка» и «журнал», — и
+// крепления стоят в 1/3 и 2/3. Стоит вернуть ветку на край листа, не тронув
+// раздачу мест, и стрелок станет три: сторона поделится на четверти, а сектор
+// от порта будет всё равно один и прицепится к одной из них. Зелёным тест
+// станет снова, когда группа сегментов с общим источником сведётся к одному
+// месту.
+func TestPortTreeTakesOneSlot(t *testing.T) {
+	m := modelOf(t, document("branch-border.yaml"))
+	layout.Apply(m)
+
+	block := boxes(m)["Обработка"]
+	right := block.X.Val + block.Width.Val
+
+	// Точки, которыми стрелки цепляются к правой стороне «Обработки».
+	seen := make(map[float64]string)
+	for _, a := range m.Layout.Arrows {
+		for _, s := range branchSegments(a, "Проба") {
+			for _, p := range s.Points {
+				if near(p.X.Val, right) {
+					seen[p.Y.Val] = a.Flow.Name
+				}
+			}
+		}
+	}
+
+	h := block.Height.Val
+	want := map[float64]bool{
+		block.Y.Val + h/3:   true, // «заготовка»
+		block.Y.Val + 2*h/3: true, // «журнал» — весь, одним деревом
+	}
+	if len(seen) != len(want) {
+		t.Fatalf("креплений на стороне выхода «Обработки» %d, ожидалось %d: %v",
+			len(seen), len(want), seen)
+	}
+	for at, flow := range seen {
+		if !want[at] {
+			t.Errorf("крепление «%s» на y=%g: сторона поделена не на три части, а мельче",
+				flow, at)
+		}
+	}
+}

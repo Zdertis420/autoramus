@@ -2,13 +2,16 @@ package layout
 
 import (
 	"fmt"
+	"math"
 	"sort"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 )
 
-// Ветвление: поток, приходящий на диаграмму к нескольким работам, рисуется
-// одним деревом, а не отдельной линией на каждого потребителя.
+// Ветвление: поток, у которого на диаграмме несколько получателей, рисуется
+// одним деревом, а не отдельной линией на каждого. Корень дерева — либо край
+// листа (поток приходит на диаграмму снаружи), либо порт работы (поток выходит
+// из блока). Рисунок у них общий, и различаются они только корнем.
 //
 // Рисунок не придуман, а снят с `examples/тест.rsf` посегментно. «Контроль»
 // приходит там сверху к четырём блокам и разложен так:
@@ -27,23 +30,26 @@ import (
 // Узлы заводятся только там, где есть что ветвить: один потребитель — одна
 // линия и ни одного узла (FR-012).
 
-// branch перестраивает граничные стрелки, у которых потребителей больше одного,
-// в деревья. Остальные возвращаются как были.
+// branch перестраивает стрелки, у которых получателей больше одного, в деревья.
+// Остальные возвращаются как были.
+//
+// Источником дерева бывает и край листа, и порт работы. Разница между ними —
+// только в корне, поэтому ключ у них общий, а работа в нём пуста у края листа:
+// прежнее граничное ветвление осталось частным случаем, а не отдельной веткой
+// кода.
 //
 // Порядок сохраняется: группа замещается своим деревом на месте первого её
 // сегмента. Обход отображений дал бы разные файлы на одном входе.
 func branch(all []*arrow, boxes map[string]box, blocks map[string][]box) []*arrow {
-	// Ключ источника: у края листа он один на диаграмму и сторону, и все
-	// сегменты под ним — ветви одного дерева.
-	type key struct{ diagram, flow, side string }
+	type key struct{ diagram, flow, function, side string }
 
 	groups := make(map[key][]*arrow)
 	var order []key
 	for _, a := range all {
-		if !a.from.onBorder() || !a.to.onFunction() {
+		if !branchable(a) {
 			continue
 		}
-		k := key{a.diagram, a.flow, a.from.side}
+		k := key{a.diagram, a.flow, a.from.function, a.from.side}
 		if _, seen := groups[k]; !seen {
 			order = append(order, k)
 		}
@@ -56,13 +62,17 @@ func branch(all []*arrow, boxes map[string]box, blocks map[string][]box) []*arro
 		if len(group) < 2 {
 			continue // ветвить нечего
 		}
-		built[k] = tree(group, boxes, blocks[k.diagram])
+		if k.function == "" {
+			built[k] = tree(group, boxes, blocks[k.diagram])
+			continue
+		}
+		built[k] = portTree(group, boxes, blocks[k.diagram])
 	}
 
 	done := make(map[key]bool, len(built))
 	out := make([]*arrow, 0, len(all))
 	for _, a := range all {
-		k := key{a.diagram, a.flow, a.from.side}
+		k := key{a.diagram, a.flow, a.from.function, a.from.side}
 		segments, branched := built[k]
 		if !branched {
 			out = append(out, a)
@@ -75,6 +85,92 @@ func branch(all []*arrow, boxes map[string]box, blocks map[string][]box) []*arro
 		out = append(out, segments...)
 	}
 	return out
+}
+
+// branchable сообщает, что сегмент вправе войти в дерево.
+//
+// С края листа — только в блок: края, соединённого с краем, не бывает. Из порта
+// работы — куда угодно, в том числе за край листа: поток, объявленный выходом
+// диаграммы, уходит наружу такой же веткой, как всякая другая.
+func branchable(a *arrow) bool {
+	if a.from.onBorder() {
+		return a.to.onFunction()
+	}
+	return a.from.onFunction()
+}
+
+// portTree собирает дерево, растущее из порта работы.
+//
+// Рисунок снят с `examples/ФормированиеТП.rsf`: поток «Структура программа»
+// выходит из блока 51 в точке (345.3, 185.9), идёт горизонталью до узла
+// (400.6, 185.9), и уже из узла расходится к двум блокам. Узел там один на всё
+// дерево и стоит на высоте порта: цепочки узлов вдоль магистрали, какую Ramus
+// строит у граничной стрелки, здесь нет.
+//
+// Сортировать получателей не нужно и незачем: из одного узла ветки расходятся
+// в любом порядке, а порядок записи берётся из документа и потому устойчив.
+func portTree(group []*arrow, boxes map[string]box, blocks []box) []*arrow {
+	sample := group[0]
+	port := attach(boxes[sample.from.function], sample.from)
+	node := point{x: portLane(group, port, boxes, blocks), y: port.y}
+
+	// Имя узла живёт в пределах одной стрелки, но один поток вправе ветвиться
+	// на диаграмме и от края листа, и от порта, и от двух портов сразу —
+	// поэтому в имя входит источник, а не одна лишь сторона.
+	name := fmt.Sprintf("%s/%s/%s", sample.diagram, sample.from.function, sample.from.side)
+
+	out := make([]*arrow, 0, len(group)+1)
+
+	// Голова: от порта до узла. Она одна — ради неё всё и затевалось.
+	out = append(out, &arrow{flow: sample.flow, diagram: sample.diagram,
+		from: sample.from, to: end{node: name},
+		points: clean([]point{port, node})})
+
+	for _, a := range group {
+		_, to := ends(a, boxes)
+		// Маршрут ветки строит route() по исходной стрелке: и направление, и
+		// обход блоков он считает по блоку производителя, а у конца-узла блока
+		// нет — backward() на нём всегда сказал бы «вперёд» и увёл обратную
+		// ветку сквозь лестницу. Меняется только начальная точка: узел вместо
+		// порта.
+		out = append(out, &arrow{flow: a.flow, diagram: a.diagram,
+			from: end{node: name}, to: a.to,
+			points: route(a, node, to, blocks)})
+	}
+	return out
+}
+
+// portLane — вертикаль, на которой стоит узел дерева от порта.
+//
+// Это решение, а не мера, и обозначено так намеренно. В «ФормированииТП» узлы
+// двух таких деревьев стоят на 400.625 и 249.375 при промежутках 345.3…450 и
+// 153…273.3. Ни серединой промежутка (397.7 и 213.2), ни постоянным отступом
+// от блока (55.3 против 96.4) эти числа не описываются, а файл правлен руками:
+// выдавать их за меру нельзя.
+//
+// Берётся то же правило, по которому уже стоит вертикаль прямой связи, —
+// середина промежутка до ближайшего получателя (middle в route.go). Правило в
+// пакете уже есть, снято с настоящих файлов для соседнего случая, и заводить
+// второе того же смысла незачем. Заодно ветка к ближайшему получателю выходит
+// ровно такой, какой была бы одиночная связь.
+func portLane(group []*arrow, port point, boxes map[string]box, blocks []box) float64 {
+	lane := math.Inf(1)
+	for _, a := range group {
+		if !a.to.onFunction() {
+			continue
+		}
+		at := middle(a, port, attach(boxes[a.to.function], a.to), blocks)
+		if at > port.x && at < lane {
+			lane = at
+		}
+	}
+	if math.IsInf(lane, 1) {
+		// Все ветки уходят назад или за край листа: промежутка, по которому
+		// считать середину, нет. Отступ от порта — тот же stub, на котором
+		// разворачивается обратная связь.
+		return port.x + stub
+	}
+	return lane
 }
 
 // tree собирает дерево одной граничной стрелки.

@@ -651,3 +651,53 @@ func TestCrosspointIsOnePoint(t *testing.T) {
 		})
 	}
 }
+
+// TestOrdinatesSharedWithinArrow — точки одной стрелки на одной диаграмме,
+// лежащие на общей прямой, делят номер линии.
+//
+// Шире, чем TestOrdinatesSharedWithinSector, и ловит другое. Номером линии
+// Ramus сшивает сегменты в одну стрелку: у ветвящегося «контроля» в «тесте»
+// вся магистраль несёт yo=174 на семи секторах, а вертикаль входа — xo=169 на
+// трёх. Раздай номера посекторно — и Ramus покажет не стрелку, а стопку
+// совпадающих обрывков: выделяется кусками, а первое же перетаскивание блока
+// растаскивает их врозь. Это FR-007 фичи 009, и проверки на него не было:
+// прежний тест смотрел внутрь сектора, где номера делились и так.
+//
+// Разным стрелкам и одной стрелке на разных диаграммах общая линия не нужна:
+// в «тесте» координату 7.0 делят шесть стрелок, и номер у каждой свой.
+func TestOrdinatesSharedWithinArrow(t *testing.T) {
+	for _, path := range []string{
+		documentPath("staircase.yaml"),
+		documentPath("branch-border.yaml"),
+		examplePath("skirt.yaml"),
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+
+			type line struct {
+				stream, diagram int64
+				at              float64
+			}
+			xs := make(map[line]int64)
+			ys := make(map[line]int64)
+
+			for _, s := range m.Sectors() {
+				for _, p := range s.Points {
+					x := line{s.Stream, s.Diagram, p.X}
+					if known, ok := xs[x]; ok && known != p.XOrdinate {
+						t.Errorf("поток %d на диаграмме %d: x = %g назван линиями %d и %d",
+							s.Stream, s.Diagram, p.X, known, p.XOrdinate)
+					}
+					xs[x] = p.XOrdinate
+
+					y := line{s.Stream, s.Diagram, p.Y}
+					if known, ok := ys[y]; ok && known != p.YOrdinate {
+						t.Errorf("поток %d на диаграмме %d: y = %g назван линиями %d и %d",
+							s.Stream, s.Diagram, p.Y, known, p.YOrdinate)
+					}
+					ys[y] = p.YOrdinate
+				}
+			}
+		})
+	}
+}
