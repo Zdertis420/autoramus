@@ -133,15 +133,54 @@ func diagramArrows(m *ir.Model, d diagram) []*arrow {
 			}
 
 		case l.From.Name != "" && d.siblings[l.From.Name] && l.To.Name == "":
-			if consumed[flow] {
-				// Уже нарисовано стрелкой к потребителю: связь одна, и
-				// рисовать её дважды значило бы удвоить стрелки.
+			if consumed[flow] && !leaves(m, d, flow) {
+				// Поток живёт внутри диаграммы целиком: он уже нарисован
+				// стрелкой к потребителю, и рисовать его дважды значило бы
+				// удвоить стрелки.
 				continue
 			}
 			add(flow, end{function: l.From.Name, side: ir.SideOut}, end{side: ir.SideOut})
 		}
 	}
 	return out
+}
+
+// leaves сообщает, что поток уходит за пределы диаграммы.
+//
+// Половинки связей симметричны: и поток, который кончился здесь, и поток,
+// который пошёл выше, приходят сюда одной и той же записью из out у работы.
+// Отличить их можно только в одном месте — в ICOM владельца диаграммы, и
+// смотреть надо туда. Валидатор смотрит туда же (checkDecomposition).
+//
+// Туннель отменяет ветку: поток, названный в tunnel, намеренно не переходит на
+// уровень выше, и дорисовывать ему выход значило бы спорить с автором. Это
+// единственное место, где раскладка читает tunnel, — геометрии туннель не
+// задаёт, он говорит, какой стрелки быть не должно.
+func leaves(m *ir.Model, d diagram, flow string) bool {
+	if d.owner == "" {
+		// Контекстная A-0: уровня выше неё нет, и её выходы уходят за край
+		// листа безусловно.
+		return true
+	}
+	owner := m.Function(d.owner)
+	if owner == nil {
+		return false
+	}
+	for _, t := range owner.Tunnel {
+		if t.Name == flow {
+			return false
+		}
+	}
+	// Выход владельца — это половинка с его именем в From: та самая запись из
+	// его списка out. Явная запись секции links с названным приёмником годится
+	// тоже: поток и там уходит из блока владельца, а значит обязан дойти до
+	// края его декомпозиции.
+	for _, l := range m.Links {
+		if l.Flow.Name == flow && l.From.Name == d.owner {
+			return true
+		}
+	}
+	return false
 }
 
 // appendOnce добавляет имя, если его ещё нет: работа, объявившая один и тот же
@@ -164,28 +203,43 @@ func appendOnce(list []string, name string) []string {
 //
 // Ключ включает диаграмму: один и тот же блок на диаграмме родителя и на своей
 // собственной несёт разные стрелки, и места считаются отдельно.
+//
+// Место раздаётся потоку, а не сегменту. Поток, уходящий из одного порта к
+// нескольким получателям, — одна стрелка с узлом (tree.go), и цепляется она к
+// стороне одной точкой. Считать её ветки порознь значило бы поделить сторону
+// на доли, которых на рисунке нет: сектор от порта всё равно один и сел бы в
+// одну из них, оставив прочие пустыми.
 func assignSlots(all []*arrow) {
 	type key struct{ diagram, function, side string }
+	type seat struct {
+		key  key
+		flow string
+	}
 
 	total := make(map[key]int)
+	number := make(map[seat]int)
 	for _, a := range all {
 		for _, e := range []end{a.from, a.to} {
 			if !e.onFunction() {
 				continue
 			}
-			total[key{a.diagram, e.function, e.side}]++
+			k := key{a.diagram, e.function, e.side}
+			s := seat{k, a.flow}
+			if _, taken := number[s]; taken {
+				continue // тот же поток той же стороной: место у него общее
+			}
+			total[k]++
+			number[s] = total[k]
 		}
 	}
 
-	taken := make(map[key]int, len(total))
 	for _, a := range all {
 		for _, e := range []*end{&a.from, &a.to} {
 			if !e.onFunction() {
 				continue
 			}
 			k := key{a.diagram, e.function, e.side}
-			taken[k]++
-			e.place = slot{k: taken[k], n: total[k]}
+			e.place = slot{k: number[seat{k, a.flow}], n: total[k]}
 		}
 	}
 }

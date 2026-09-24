@@ -1,22 +1,26 @@
-# Сборка ramusc. Вывод детерминированный: -trimpath убирает пути сборочной
-# машины из бинаря, версия подставляется явно.
+# Сборка ramusc. Логика целей живёт в ./internal/build — программе на Go,
+# которую цели зовут через `go run`. Причина: GNU Make на Windows берёт
+# cmd.exe, когда не находит sh.exe в PATH, и рецепты на POSIX-диалекте там
+# не разбираются — одинарные кавычки не снимаются, /dev/null это путь,
+# которого нет. Программа на Go запускает go build через os/exec, аргументы
+# передаёт массивом, и шелла между make и сборкой не остаётся вовсе.
+#
+# Makefile здесь — оглавление операций, а не язык программирования. Сам он
+# необязателен: `go run ./internal/build <цель>` делает то же самое, и на
+# машине без make собрать проект можно так.
 
-BIN     := ramusc
-PKG     := ./cmd/ramusc
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.version=$(VERSION)
-GOFLAGS := -trimpath
+# Пустая по умолчанию: версию добудет ./internal/build через git describe.
+# Явное значение важнее вычисленного — make build VERSION=1.2.3.
+VERSION ?=
 
-# Платформы для кросс-компиляции. GUI фактически Linux-only, остальным
-# пользователям достаётся CLI.
-PLATFORMS := linux/amd64 linux/arm64 windows/amd64 darwin/amd64 darwin/arm64
+TOOL := go run ./internal/build
 
 .PHONY: all build test vet fmt check cross clean golden
 
 all: build
 
 build:
-	go build $(GOFLAGS) -ldflags '$(LDFLAGS)' -o $(BIN) $(PKG)
+	$(TOOL) build -version "$(VERSION)"
 
 test:
 	go test ./...
@@ -29,9 +33,7 @@ fmt:
 
 # Проверка перед коммитом: форматирование, вет, тесты.
 check:
-	@test -z "$$(gofmt -l .)" || { echo "не отформатировано:"; gofmt -l .; exit 1; }
-	$(MAKE) vet
-	$(MAKE) test
+	$(TOOL) check
 
 # Переписать эталоны после осознанного изменения сообщений или вывода dump.
 golden:
@@ -40,14 +42,7 @@ golden:
 	go test ./cmd/ramusc -update
 
 cross:
-	@for platform in $(PLATFORMS); do \
-		os=$${platform%/*}; arch=$${platform#*/}; \
-		ext=""; [ "$$os" = "windows" ] && ext=".exe"; \
-		echo "  $$os/$$arch"; \
-		GOOS=$$os GOARCH=$$arch CGO_ENABLED=0 \
-			go build $(GOFLAGS) -ldflags '$(LDFLAGS)' \
-			-o dist/$(BIN)-$$os-$$arch$$ext $(PKG) || exit 1; \
-	done
+	$(TOOL) cross -version "$(VERSION)"
 
 clean:
-	rm -rf $(BIN) dist
+	$(TOOL) clean
