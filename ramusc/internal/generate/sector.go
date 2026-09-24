@@ -32,10 +32,64 @@ const (
 	sectorRuneWidth = 4.3
 )
 
-// Точки ломаной. POINT_TYPE в настоящих файлах чаще всего -1 (76 точек из 101
-// в «тесте»), правила для 0 и 1 из данных не видно, и -1 — значение, с которым
-// Ramus заведомо работает.
-const pointType = "-1"
+// Ход конца: куда линия уходит из точки.
+//
+// Правило снято с трёх файлов Ramus — 84 конца, ноль нарушений. Заполняется
+// только у концов, сидящих на узле; у концов на блоке, на краю листа и у всех
+// точек внутри ломаной стоит «не определено».
+//
+// Прежде здесь стояло «правила для 0 и 1 из данных не видно», и это было верно
+// ровно до тех пор, пока смотрели на все точки разом: среди них узловых концов
+// меньше трети, и правило тонуло в остальных. Стоило разделить точки по тому,
+// на чём сидит их конец, как оно проступило без единого исключения.
+//
+// Одного этого поля для соединённых линий мало — проверено в Ramus: с ходом,
+// записанным у всех узловых концов, стык выглядел прежним. Узлом конец делают
+// общие ординаты (см. writeSectors); ход пишется, потому что так пишет Ramus.
+const (
+	pointTypeNone       = "-1"
+	pointTypeHorizontal = "0"
+	pointTypeVertical   = "1"
+)
+
+// pointTypeOf отдаёт ход конца для точки i ломаной.
+//
+// Узел отличается от прочих концов **видом**, а не наличием номера кросспоинта:
+// номер есть и у концов, которыми сшиты уровни, и таких вдвое больше. Написать
+// им ход значило бы разойтись с Ramus, который оставляет их неопределёнными.
+func pointTypeOf(seg *ir.Segment, i int) string {
+	var end *ir.Endpoint
+	var next int
+	switch {
+	case i == 0:
+		end, next = seg.From, 1
+	case i == len(seg.Points)-1:
+		end, next = seg.To, i-1
+	default:
+		return pointTypeNone // точка внутри ломаной: у Ramus всегда -1
+	}
+
+	if end == nil || end.Kind() != ir.EndpointNode {
+		return pointTypeNone
+	}
+	if next < 0 || next >= len(seg.Points) {
+		return pointTypeNone // ломаная из одной точки: хода нет
+	}
+
+	at, to := seg.Points[i], seg.Points[next]
+	switch {
+	case at.X.Val == to.X.Val && at.Y.Val == to.Y.Val:
+		// Вырожденный отрезок. Сказать про него «горизонталь» значило бы
+		// соврать в поле, по которому Ramus рисует.
+		return pointTypeNone
+	case at.Y.Val == to.Y.Val:
+		return pointTypeHorizontal
+	case at.X.Val == to.X.Val:
+		return pointTypeVertical
+	default:
+		return pointTypeNone // наискось маршруты не ходят, но правило полное
+	}
+}
 
 // writeSectors записывает стрелки: по сектору на каждый нарисованный сегмент.
 //
@@ -69,6 +123,16 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 		return err
 	}
 
+	// Ординаты делятся на пару «диаграмма + поток», а не на сектор. Узел
+	// у Ramus — не координата, а пара ординат: точки он сравнивает по их
+	// тождеству, и концы трёх секторов с равными X/Y, но разными номерами,
+	// для него — три посторонние точки, лежащие рядом. Ствол с ветками он тогда
+	// рисует отдельными линиями без скругления в стыке. Мера — три файла Ramus:
+	// 28 узлов, у всех общие ординаты; номер ординаты при этом ни разу не
+	// выходит за пределы одного потока на одной диаграмме.
+	type owner struct{ diagram, stream int64 }
+	ordinates := make(map[owner]*lines)
+
 	for _, arrow := range source.Layout.Arrows {
 		stream, ok := streams[arrow.Flow.Name]
 		if !ok {
@@ -79,6 +143,11 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 			diagram, err := diagramID(m, seg, functions)
 			if err != nil {
 				return fmt.Errorf("поток «%s»: %w", arrow.Flow.Name, err)
+			}
+			shared, ok := ordinates[owner{diagram, stream}]
+			if !ok {
+				shared = newLines(c)
+				ordinates[owner{diagram, stream}] = shared
 			}
 
 			id := next
@@ -94,6 +163,7 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 				functions:  functions,
 				counters:   c,
 				nodes:      nodes,
+				ordinates:  shared,
 			}); err != nil {
 				return fmt.Errorf("поток «%s»: %w", arrow.Flow.Name, err)
 			}
@@ -117,6 +187,10 @@ type sector struct {
 	// кросспоинт в файле всегда принадлежит ровно одному потоку, и имена
 	// узлов разных стрелок пересечься не могут.
 	nodes *nodeIDs
+	// ordinates — координатные линии этого потока на этой диаграмме: общие у
+	// всех его секторов, чтобы концы, сходящиеся в узле, были для Ramus одной
+	// точкой.
+	ordinates *lines
 }
 
 // diagramID отвечает, на чьей диаграмме нарисован сегмент.
@@ -189,9 +263,7 @@ func writeSector(m *rsf.Model, s sector) error {
 		}{"attribute_sector_borders", values})
 	}
 
-	// Ординаты считаются на сектор: точки, лежащие на одной прямой, делят
-	// номер линии. Так это устроено в настоящих файлах.
-	ordinates := newLines(s.counters)
+	ordinates := s.ordinates
 	for i, p := range s.segment.Points {
 		rows = append(rows, struct {
 			table  string
@@ -200,7 +272,7 @@ func writeSector(m *rsf.Model, s sector) error {
 			"ATTRIBUTE_ID":    fmt.Sprint(s.attributes["F_SECTOR_POINTS"]),
 			"ELEMENT_ID":      element,
 			"POSITION":        fmt.Sprint(i),
-			"POINT_TYPE":      pointType,
+			"POINT_TYPE":      pointTypeOf(s.segment, i),
 			"X_POSITION":      number(p.X.Val),
 			"Y_POSITION":      number(p.Y.Val),
 			"X_ORDINATE_ID":   fmt.Sprint(ordinates.ordinateX(p.X.Val)),

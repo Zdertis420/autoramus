@@ -418,6 +418,141 @@ func TestOrdinatesSharedWithinSector(t *testing.T) {
 	}
 }
 
+// Узел в Ramus — не координата, а пара ординат. Точки сравниваются по
+// тождеству ординат (Point.equals), направление отрезка — по тому, общая ли
+// ордината у его концов (Pin.getType), а соседи в узле ищутся перебором точек
+// той же ординаты (Point.getPins). Три конца с одинаковыми X/Y, но разными
+// номерами ординат для Ramus — три посторонние точки, лежащие рядом: он не
+// видит ни ствола, ни ответвления и не скругляет стык (ArrowPainter.paintPin).
+
+// ordinateViolation — нарушение правила общих ординат.
+type ordinateViolation struct {
+	what string
+}
+
+// ordinateViolations проверяет два правила, снятых с файлов Ramus:
+//
+//  1. концы, сидящие на одном узле одной диаграммы, делят обе ординаты;
+//  2. номер ординаты не выходит за пределы одной стрелки: у всех его точек
+//     одна диаграмма и один поток.
+//
+// Второе нужно не для отрисовки, а для правки в Ramus: ордината — общая
+// направляющая, и точки чужой стрелки на ней поехали бы вслед за перетаскиванием.
+func ordinateViolations(m *rsf.Model) []ordinateViolation {
+	var out []ordinateViolation
+
+	type node struct{ diagram, crosspoint int64 }
+	type pair struct{ x, y int64 }
+	nodes := make(map[node]pair)
+	var nodeOrder []node
+
+	type owner struct{ diagram, stream int64 }
+	type line struct {
+		axis byte
+		id   int64
+	}
+	owners := make(map[line]owner)
+	var lineOrder []line
+	reported := make(map[line]bool)
+
+	for _, s := range m.Sectors() {
+		if len(s.Points) < 2 {
+			continue
+		}
+		last := len(s.Points) - 1
+		for _, e := range []struct {
+			border *rsf.Border
+			point  rsf.Point
+		}{{s.Start, s.Points[0]}, {s.End, s.Points[last]}} {
+			if !junctionEnd(e.border) {
+				continue
+			}
+			k := node{s.Diagram, e.border.Crosspoint}
+			got := pair{e.point.XOrdinate, e.point.YOrdinate}
+			known, ok := nodes[k]
+			if !ok {
+				nodes[k] = got
+				nodeOrder = append(nodeOrder, k)
+				continue
+			}
+			if known != got {
+				out = append(out, ordinateViolation{fmt.Sprintf(
+					"диаграмма %d, узел %d: сектор %d сидит на ординатах (%d, %d), а соседний — на (%d, %d)",
+					k.diagram, k.crosspoint, s.ID, got.x, got.y, known.x, known.y)})
+			}
+		}
+
+		if s.Stream < 0 {
+			// Стрелка без потока: у Ramus две такие в «тесте» делят ординату,
+			// и различать их нечем — потока «никакой» у обеих.
+			continue
+		}
+		for _, p := range s.Points {
+			for _, l := range []line{{'x', p.XOrdinate}, {'y', p.YOrdinate}} {
+				o := owner{s.Diagram, s.Stream}
+				known, ok := owners[l]
+				if !ok {
+					owners[l] = o
+					lineOrder = append(lineOrder, l)
+					continue
+				}
+				if known != o && !reported[l] {
+					reported[l] = true
+					out = append(out, ordinateViolation{fmt.Sprintf(
+						"ордината %c%d общая у двух стрелок: диаграмма %d поток %d и диаграмма %d поток %d",
+						l.axis, l.id, known.diagram, known.stream, o.diagram, o.stream)})
+				}
+			}
+		}
+	}
+	return out
+}
+
+// TestJunctionOrdinatesInRamusFiles — мера правила на файлах самого Ramus.
+//
+// 28 узлов на трёх файлах, у всех концы делят обе ординаты; номер ординаты ни
+// разу не выходит за пределы одного потока на одной диаграмме.
+func TestJunctionOrdinatesInRamusFiles(t *testing.T) {
+	for _, name := range []string{"тест.rsf", "ИзготовлениеЮбки.rsf", "ФормированиеТП.rsf"} {
+		t.Run(name, func(t *testing.T) {
+			file, err := rsf.Open(examplePath(name))
+			if err != nil {
+				t.Fatal(err)
+			}
+			m, err := rsf.NewModel(file)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, v := range ordinateViolations(m) {
+				t.Errorf("%s — значит правило не правило", v.what)
+			}
+		})
+	}
+}
+
+// TestJunctionEndsShareOrdinates — то же правило на наших файлах.
+//
+// Прежде ординаты раздавались на сектор, и ни один из 22 узлов «чахохбили» не
+// делил их: Ramus рисовал ствол и ветки отдельными линиями, лежащими рядом.
+func TestJunctionEndsShareOrdinates(t *testing.T) {
+	for _, path := range []string{
+		examplePath("chakhokhbili.yaml"),
+		examplePath("skirt.yaml"),
+		examplePath("skirt-full.yaml"),
+		documentPath("staircase.yaml"),
+		documentPath("nested.yaml"),
+		documentPath("feedback.yaml"),
+		documentPath("channels-trunk.yaml"),
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+			for _, v := range ordinateViolations(m) {
+				t.Error(v.what)
+			}
+		})
+	}
+}
+
 // TestNestedLevels — модель с тремя уровнями: сегменты чужих диаграмм не
 // смешиваются.
 func TestNestedLevels(t *testing.T) {
@@ -647,6 +782,99 @@ func TestCrosspointIsOnePoint(t *testing.T) {
 			for _, v := range crosspointViolations(m) {
 				t.Errorf("диаграмма %d, узел %d стоит у %d разных точек: %v",
 					v.diagram, v.crosspoint, len(v.points), v.points)
+			}
+		})
+	}
+}
+
+// Ход конца в узле. У конца сегмента, сидящего на узле одной диаграммы, Ramus
+// записывает, куда линия уходит из этой точки: 0 — горизонталью, 1 —
+// вертикалью. Мера снята с трёх его файлов, 84 конца, ноль нарушений
+// (specs/011-junction-orientation/research.md).
+//
+// Причиной «стрелки не выглядят соединёнными» поле не было: его заполнение
+// картинку в Ramus не изменило. Причина — ординаты, см. ordinateViolations.
+
+// junctionEnd сообщает, что конец сидит на узле.
+//
+// Узел — конец, не прицепленный ни к работе, ни к краю листа. Различать по
+// одному лишь номеру кросспоинта нельзя: номер есть и у концов, которыми сшиты
+// уровни, и таких вдвое больше.
+func junctionEnd(b *rsf.Border) bool {
+	return b != nil && b.Crosspoint >= 0 && !b.OnFunction() && b.BorderType < 0
+}
+
+// wayOut отдаёт ход конца по соседней точке: 0 — горизонталь, 1 — вертикаль,
+// -1 — хода нет (отрезок вырожден или идёт наискось).
+func wayOut(at, next rsf.Point) int64 {
+	switch {
+	case at.X == next.X && at.Y == next.Y:
+		return -1
+	case at.Y == next.Y:
+		return 0
+	case at.X == next.X:
+		return 1
+	default:
+		return -1
+	}
+}
+
+// TestJunctionEndsCarryOrientation — у каждого конца-узла записан ход.
+//
+// Проверяется по собранному файлу, а не по раскладке: поле пишет генератор, и
+// спрос с того, что доехало до .rsf.
+func TestJunctionEndsCarryOrientation(t *testing.T) {
+	for _, path := range []string{
+		examplePath("chakhokhbili.yaml"),
+		examplePath("skirt.yaml"),
+		examplePath("skirt-full.yaml"),
+		documentPath("staircase.yaml"),
+		documentPath("nested.yaml"),
+		documentPath("channels-trunk.yaml"),
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+
+			junctions := 0
+			for _, s := range m.Sectors() {
+				if len(s.Points) < 2 {
+					continue
+				}
+				last := len(s.Points) - 1
+				for _, end := range []struct {
+					border *rsf.Border
+					at     rsf.Point
+					next   rsf.Point
+					where  string
+				}{
+					{s.Start, s.Points[0], s.Points[1], "начало"},
+					{s.End, s.Points[last], s.Points[last-1], "конец"},
+				} {
+					want := wayOut(end.at, end.next)
+					if !junctionEnd(end.border) {
+						// Не узел: блок, край листа или сшивка уровней. Ramus
+						// оставляет ход неопределённым.
+						if end.at.Type != -1 {
+							t.Errorf("сектор %d, %s: ход %d у конца, который не сидит на узле",
+								s.ID, end.where, end.at.Type)
+						}
+						continue
+					}
+					junctions++
+					if want == -1 {
+						continue // вырожденный отрезок: хода нет
+					}
+					if end.at.Type != want {
+						t.Errorf("сектор %d, %s (%g, %g): ход %d, а отрезок уходит %s",
+							s.ID, end.where, end.at.X, end.at.Y, end.at.Type,
+							map[int64]string{0: "горизонталью (0)", 1: "вертикалью (1)"}[want])
+					}
+				}
+			}
+			if junctions == 0 {
+				t.Logf("узлов нет — проверять нечего")
+			} else {
+				t.Logf("узловых концов проверено: %d", junctions)
 			}
 		})
 	}
