@@ -18,7 +18,6 @@ const (
 	sectorCreateSt  = "-1"
 	sectorTilda     = "0"
 	sectorTildaPos  = "0.0"
-	sectorTransp    = "1"
 	sectorShowText  = "1"
 
 	// Высота строки подписи при шрифте Dialog 10. В файлах она кратна числу
@@ -30,6 +29,38 @@ const (
 	// Скорее всего Ramus пересчитает её при отрисовке — значение выглядит
 	// кэшем, — но оставлять ноль нельзя: у подписанных стрелок рамка непустая.
 	sectorRuneWidth = 4.3
+)
+
+// Подпись несёт не всякий сектор, а один на всю стрелку.
+//
+// Прежде SHOW_TEXT=1 стояло у каждого, и у ветвящейся стрелки подпись
+// печаталась столько раз, сколько у неё сегментов: пять копий «Правил
+// изготовления» на одной диаграмме, одна поверх другой. Двигаешь стрелку —
+// Ramus пересчитывает геометрию, и наверху оказывается то одна копия, то
+// другая, каждая со своей серединой отрезка. Со стороны это выглядит так,
+// будто подпись отлетает сама по себе, хотя линии стоят на месте.
+//
+// Правило снято с трёх файлов Ramus: 193 сектора, из них 189 с потоком —
+// ноль нарушений. Подпись несёт сектор, который **начинается не в узле** и у
+// которого оба конца на месте:
+//
+//	край → блок, край → узел, блок → блок, блок → край   подпись есть
+//	узел → что угодно                                    подписи нет
+//	конца нет вовсе (обрубок у края листа)               подписи нет
+//
+// То есть подписан ровно тот сегмент, с которого стрелка на этой диаграмме
+// начинается; ветки, отходящие от узла, молчат. Четыре сектора, выпадающие из
+// правила, — это секторы вовсе без потока, каких генератор не делает.
+//
+// Гасится подпись только в attribute_sector_properties. В attribute_sectors
+// SHOW_TEXT=1 стоит у всех 193 секторов без исключения — там это поле про
+// другое, и трогать его нельзя.
+const (
+	sectorHideText = "0"
+	// Прозрачность подписи ходит вместе с её показом: у подписанных 1,
+	// у молчащих 0. Проверено на всех трёх файлах, исключений нет.
+	sectorTranspShown  = "1"
+	sectorTranspHidden = "0"
 )
 
 // Ход конца: куда линия уходит из точки.
@@ -147,7 +178,7 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 		// По диаграммам, а не на всю стрелку: в «тесте» вертикаль «контроля»
 		// на родительской диаграмме несёт номер 169, а тот же x на диаграмме
 		// ребёнка — 166. Разным стрелкам общих линий не заводится и здесь.
-		byDiagram := make(map[int64]*lines)
+		// byDiagram := make(map[int64]*lines)
 		for _, seg := range arrow.Segments {
 			diagram, err := diagramID(m, seg, functions)
 			if err != nil {
@@ -290,21 +321,29 @@ func writeSector(m *rsf.Model, s sector) error {
 		}})
 	}
 
-	label := labelBox(s.flow, s.segment)
+	// Строка свойств есть у каждого сектора, но у молчащего она пустая:
+	// рамка в нулях, показ и прозрачность сняты. Так и в файлах Ramus —
+	// ни одного молчащего сектора с ненулевой рамкой на 135 проверенных.
+	show, transparent := sectorHideText, sectorTranspHidden
+	var box label
+	if labeled(s.segment) {
+		show, transparent = sectorShowText, sectorTranspShown
+		box = labelBox(s.flow, s.segment)
+	}
 	rows = append(rows, struct {
 		table  string
 		values map[string]string
 	}{"attribute_sector_properties", map[string]string{
 		"ATTRIBUTE_ID":    fmt.Sprint(s.attributes["F_SECTOR_PROPERTIES"]),
 		"ELEMENT_ID":      element,
-		"SHOW_TEXT":       sectorShowText,
+		"SHOW_TEXT":       show,
 		"SHOW_TILDA":      sectorTilda,
-		"TEXT_HIEGHT":     number(label.height),
-		"TEXT_WIDTH":      number(label.width),
-		"TEXT_X":          number(label.x),
-		"TEXT_Y":          number(label.y),
+		"TEXT_HIEGHT":     number(box.height),
+		"TEXT_WIDTH":      number(box.width),
+		"TEXT_X":          number(box.x),
+		"TEXT_Y":          number(box.y),
 		"TILDA_POS":       sectorTildaPos,
-		"TRANSPARENT":     sectorTransp,
+		"TRANSPARENT":     transparent,
 		"VALUE_BRANCH_ID": "0",
 	}})
 
@@ -371,6 +410,16 @@ func borderRow(s sector, e *ir.Endpoint) (map[string]string, error) {
 
 	values["CROSSPOINT"] = fmt.Sprint(s.counters.junctionOf(s.flow, s.segment, e))
 	return values, nil
+}
+
+// labeled отвечает, несёт ли сегмент подпись стрелки.
+//
+// Правило и мера — в комментарии к sectorHideText.
+func labeled(seg *ir.Segment) bool {
+	if seg.From == nil || seg.To == nil {
+		return false // обрубок: конца нет, подписывать нечего
+	}
+	return seg.From.Kind() != ir.EndpointNode
 }
 
 // label — рамка подписи стрелки.
