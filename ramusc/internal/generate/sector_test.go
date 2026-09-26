@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -877,5 +878,101 @@ func TestJunctionEndsCarryOrientation(t *testing.T) {
 				t.Logf("узловых концов проверено: %d", junctions)
 			}
 		})
+	}
+}
+
+// TestSectorLabelOnce — подпись у стрелки одна на диаграмму.
+//
+// Прежде SHOW_TEXT=1 стояло у каждого сектора, и ветвящаяся стрелка несла
+// столько подписей, сколько у неё сегментов: пять «Правил изготовления» на
+// одной диаграмме, одна поверх другой. Стоило подвинуть стрелку, как Ramus
+// пересчитывал геометрию и наверху оказывалась другая копия — со стороны это
+// выглядело так, будто подпись отлетает сама по себе.
+//
+// Мера — три настоящие модели: 189 секторов с потоком, у каждой пары
+// «диаграмма + поток» ровно одна подпись, ноль исключений.
+func TestSectorLabelOnce(t *testing.T) {
+	file, m := buildFrom(t, examplePath("skirt.yaml"))
+
+	props, err := file.Table("attribute_sector_properties")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	type owner struct{ diagram, stream int64 }
+	labels := make(map[owner]int)
+	seen := make(map[owner]bool)
+
+	for _, s := range m.Sectors() {
+		key := owner{s.Diagram, s.Stream}
+		seen[key] = true
+
+		row, ok := props.First(rsf.Eq("ELEMENT_ID", fmt.Sprint(s.ID)))
+		if !ok {
+			t.Errorf("сектор %d: нет строки подписи", s.ID)
+			continue
+		}
+		shown := props.Value(row, "SHOW_TEXT").Text == "1"
+		if shown {
+			labels[key]++
+		}
+
+		// У молчащего сектора рамка пустая: в настоящих файлах нет ни одного
+		// с SHOW_TEXT=0 и ненулевой рамкой.
+		for _, field := range []string{"TEXT_X", "TEXT_Y", "TEXT_WIDTH", "TEXT_HIEGHT"} {
+			v, err := strconv.ParseFloat(props.Value(row, field).Text, 64)
+			if err != nil {
+				t.Errorf("сектор %d: %s не число: %q", s.ID, field, props.Value(row, field).Text)
+				continue
+			}
+			zero := v == 0
+			if !shown && !zero {
+				t.Errorf("сектор %d: подписи нет, а %s не ноль", s.ID, field)
+			}
+			if shown && field == "TEXT_WIDTH" && zero {
+				t.Errorf("сектор %d: подпись показана, а рамка пустая", s.ID)
+			}
+		}
+
+		// Прозрачность ходит вместе с показом.
+		want := "0"
+		if shown {
+			want = "1"
+		}
+		if got := props.Value(row, "TRANSPARENT").Text; got != want {
+			t.Errorf("сектор %d: SHOW_TEXT=%v, а TRANSPARENT=%s", s.ID, shown, got)
+		}
+	}
+
+	for key := range seen {
+		if labels[key] != 1 {
+			t.Errorf("диаграмма %d, поток %d: подписей %d, а должна быть одна",
+				key.diagram, key.stream, labels[key])
+		}
+	}
+}
+
+// TestSectorAttributeShowText — в attribute_sectors подпись не гасится.
+//
+// Поле SHOW_TEXT есть в двух таблицах, и это разные поля. В
+// attribute_sector_properties Ramus его гасит у веток, а в attribute_sectors
+// оно равно 1 у всех 193 секторов всех трёх моделей без единого исключения.
+// Погасить его заодно значило бы починить одно и сломать другое.
+func TestSectorAttributeShowText(t *testing.T) {
+	file, m := buildFrom(t, examplePath("skirt.yaml"))
+
+	rows, err := file.Table("attribute_sectors")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range m.Sectors() {
+		row, ok := rows.First(rsf.Eq("ELEMENT_ID", fmt.Sprint(s.ID)))
+		if !ok {
+			t.Errorf("сектор %d: нет строки оформления", s.ID)
+			continue
+		}
+		if got := rows.Value(row, "SHOW_TEXT").Text; got != "1" {
+			t.Errorf("сектор %d: в attribute_sectors SHOW_TEXT=%s, у Ramus всегда 1", s.ID, got)
+		}
 	}
 }
