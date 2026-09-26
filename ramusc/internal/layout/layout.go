@@ -27,17 +27,38 @@ func Apply(m *ir.Model) {
 		m.Layout = &ir.Layout{Path: "/layout"}
 	}
 
-	known := make(map[string]bool, len(m.Layout.Functions))
+	known := make(map[string]*ir.FunctionLayout, len(m.Layout.Functions))
 	for _, box := range m.Layout.Functions {
-		known[box.Function.Name] = true
+		known[box.Function.Name] = box
 	}
+
+	// Сколько стрелок у каждой стороны каждого блока — до того, как блоки
+	// встали: размер блока от этого числа и зависит. Сами стрелки выводятся из
+	// связей документа без единой координаты, поэтому считать их можно раньше,
+	// чем прокладывать; прокладываются они третьим проходом, ниже.
+	needs := demand(arrows(m))
 
 	for _, diagram := range diagrams(m) {
 		ordered := sortByFlow(diagram.children, edges(m, diagram.siblings))
-		for i, place := range place(len(ordered)) {
+		wants := make([]need, len(ordered))
+		for i, name := range ordered {
+			wants[i] = needs[blockKey{diagram.owner, name}]
+		}
+		for i, place := range place(wants) {
 			name := ordered[i]
-			if known[name] {
+			if authored := known[name]; authored != nil {
 				// Автор задал сам — не трогаем ни значение, ни порядок записи.
+				//
+				// Кроме размера, которого он не задавал: схема разрешает
+				// положение без ширины и высоты, и такой блок уходил в файл
+				// нулевым. Это не решение автора, а пропуск, и раскладка
+				// дописывает недостающее — то, что сказано, остаётся как есть.
+				if !authored.Width.Set {
+					authored.Width = ir.Num{Val: place.width, Set: true, Path: authored.Path + "/width"}
+				}
+				if !authored.Height.Set {
+					authored.Height = ir.Num{Val: place.height, Set: true, Path: authored.Path + "/height"}
+				}
 				continue
 			}
 			path := fmt.Sprintf("/layout/functions/%d", len(m.Layout.Functions))

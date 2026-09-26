@@ -264,3 +264,61 @@ func format(s *ir.Segment) string {
 	}
 	return out
 }
+
+// TestControlRouteClimbsOver — связь «выход → управление» не идёт сквозь
+// приёмник, когда тот поднялся выше точки выхода (research Р-6).
+//
+// Прежний шаблон — вправо до вертикали порта и вниз — считал, что лестница
+// ставит приёмник ниже источника. Выросший блок может встать выше: сумма
+// высот съедает вертикальный размах, и соседи перекрываются по высоте. Тогда
+// горизонталь шла бы сквозь приёмник, и стрелка обходит его сверху.
+func TestControlRouteClimbsOver(t *testing.T) {
+	control := func(m *ir.Model) {
+		m.Flows = append(m.Flows, ir.Ref{Name: "указание"})
+		m.Links = append(m.Links,
+			produces("источник", "указание"),
+			&ir.Link{Flow: ir.Ref{Name: "указание"}, To: ir.Ref{Name: "приёмник"},
+				Side: ir.SideControl, Sugar: true},
+		)
+	}
+	segment := func(t *testing.T, m *ir.Model) *ir.Segment {
+		t.Helper()
+		for _, a := range m.Layout.Arrows {
+			if a.Flow.Name == "указание" && len(a.Segments) == 1 {
+				return a.Segments[0]
+			}
+		}
+		t.Fatal("стрелка «указание» не нарисована одним сегментом")
+		return nil
+	}
+
+	t.Run("приёмник выше выхода", func(t *testing.T) {
+		m := model("корень", "источник", "приёмник")
+		control(m)
+		crowd(m, "приёмник", ir.SideIn, 19)
+		layout.Apply(m)
+
+		s := segment(t, m)
+		source, target := boxes(m)["источник"], boxes(m)["приёмник"]
+		if exit := s.Points[0].Y.Val; exit <= target.Y.Val {
+			t.Fatalf("выход на y=%v уже выше приёмника (верх %v) — случай не тот, что проверяется",
+				exit, target.Y.Val)
+		}
+		checkSegment(t, "указание", s, []*ir.FunctionLayout{source, target}, true)
+
+		n := len(s.Points)
+		last, before := s.Points[n-1], s.Points[n-2]
+		if !near(last.Y.Val, target.Y.Val) || before.Y.Val >= last.Y.Val {
+			t.Errorf("стрелка приходит в управление не сверху: %s", format(s))
+		}
+	})
+
+	t.Run("приёмник ниже выхода", func(t *testing.T) {
+		m := model("корень", "источник", "приёмник")
+		control(m)
+		layout.Apply(m)
+		if s := segment(t, m); len(s.Points) != 3 {
+			t.Errorf("без перекрытия маршрут прежний, из трёх точек, а вышло %s", format(s))
+		}
+	})
+}

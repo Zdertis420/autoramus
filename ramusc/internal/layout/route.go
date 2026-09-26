@@ -58,8 +58,20 @@ func backward(a *arrow, blocks []box) bool {
 func forward(a *arrow, from, to point, blocks []box) []point {
 	switch a.to.side {
 	case ir.SideControl:
-		// Вправо до вертикали порта, вниз в верх блока.
-		return []point{from, {x: to.x, y: from.y}, to}
+		// Вправо до вертикали порта, вниз в верх блока — пока приёмник ниже
+		// точки выхода.
+		//
+		// Выросшие блоки перекрываются по высоте (place), и приёмник может
+		// подняться выше выхода источника. Тогда горизонталь прошла бы сквозь
+		// него, и стрелка обходит сверху: вправо до середины промежутка,
+		// вверх над приёмником, вправо до порта, вниз. Обход — только по
+		// нужде: где хватает прежнего шаблона, рисунок не меняется.
+		above := to.y - stub
+		if from.y <= above {
+			return []point{from, {x: to.x, y: from.y}, to}
+		}
+		mid := middle(a, from, to, blocks)
+		return []point{from, {x: mid, y: from.y}, {x: mid, y: above}, {x: to.x, y: above}, to}
 
 	case ir.SideMechanism:
 		// Механизм приходит снизу, поэтому стрелка обязана обогнуть блок и

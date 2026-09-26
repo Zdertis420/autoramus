@@ -210,20 +210,43 @@ func appendOnce(list []string, name string) []string {
 // на доли, которых на рисунке нет: сектор от порта всё равно один и сел бы в
 // одну из них, оставив прочие пустыми.
 func assignSlots(all []*arrow) {
-	type key struct{ diagram, function, side string }
-	type seat struct {
-		key  key
-		flow string
+	total, number := seats(all)
+	for _, a := range all {
+		for _, e := range []*end{&a.from, &a.to} {
+			if !e.onFunction() {
+				continue
+			}
+			k := sideKey{a.diagram, e.function, e.side}
+			e.place = slot{k: number[seat{k, a.flow}], n: total[k]}
+		}
 	}
+}
 
-	total := make(map[key]int)
-	number := make(map[seat]int)
+// sideKey — одна сторона одного блока на одной диаграмме.
+type sideKey struct{ diagram, function, side string }
+
+// seat — место потока на стороне.
+type seat struct {
+	key  sideKey
+	flow string
+}
+
+// seats считает места на сторонах: сколько их всего и какое досталось каждому
+// потоку.
+//
+// Вынесено из assignSlots, потому что тем же числом меряется и размер блока
+// (demand). Два подсчёта по отдельности рано или поздно разошлись бы — скажем,
+// в том, считать ли ветки одного потока порознь, — и блок вырос бы под одно
+// число стрелок, а поделили бы его под другое.
+func seats(all []*arrow) (total map[sideKey]int, number map[seat]int) {
+	total = make(map[sideKey]int)
+	number = make(map[seat]int)
 	for _, a := range all {
 		for _, e := range []end{a.from, a.to} {
 			if !e.onFunction() {
 				continue
 			}
-			k := key{a.diagram, e.function, e.side}
+			k := sideKey{a.diagram, e.function, e.side}
 			s := seat{k, a.flow}
 			if _, taken := number[s]; taken {
 				continue // тот же поток той же стороной: место у него общее
@@ -232,16 +255,40 @@ func assignSlots(all []*arrow) {
 			number[s] = total[k]
 		}
 	}
+	return total, number
+}
 
-	for _, a := range all {
-		for _, e := range []*end{&a.from, &a.to} {
-			if !e.onFunction() {
-				continue
-			}
-			k := key{a.diagram, e.function, e.side}
-			e.place = slot{k: number[seat{k, a.flow}], n: total[k]}
+// blockKey — блок на одной диаграмме. Одна и та же работа на диаграмме
+// родителя и на своей собственной — два разных блока с разными стрелками.
+type blockKey struct{ diagram, function string }
+
+// need — сколько мест занято на каждой стороне блока.
+type need struct{ in, out, control, mechanism int }
+
+// demand отдаёт число мест на сторонах каждого блока.
+//
+// Считается до расстановки блоков: стрелки выводятся из связей документа, а
+// координаты им нужны только для маршрутов. Поэтому размер блока может
+// зависеть от числа его стрелок, не дожидаясь, пока блоки встанут.
+func demand(all []*arrow) map[blockKey]need {
+	total, _ := seats(all)
+	out := make(map[blockKey]need)
+	for k, n := range total {
+		b := blockKey{k.diagram, k.function}
+		v := out[b]
+		switch k.side {
+		case ir.SideIn:
+			v.in = n
+		case ir.SideControl:
+			v.control = n
+		case ir.SideMechanism:
+			v.mechanism = n
+		default: // ir.SideOut
+			v.out = n
 		}
+		out[b] = v
 	}
+	return out
 }
 
 // attach отдаёт точку крепления к стороне блока.

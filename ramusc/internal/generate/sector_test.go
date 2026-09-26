@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -974,5 +975,177 @@ func TestSectorAttributeShowText(t *testing.T) {
 		if got := rows.Value(row, "SHOW_TEXT").Text; got != "1" {
 			t.Errorf("сектор %d: в attribute_sectors SHOW_TEXT=%s, у Ramus всегда 1", s.ID, got)
 		}
+	}
+}
+
+// Промежутки у блока. Стрелки одной стороны делят её на n+1 частей, и при
+// постоянном размере блока они сходились до неразличимого: двенадцать входов
+// на высоте 50.4 — по 3.9 единицы. Раскладка растит блок под его стрелки;
+// здесь проверяется, что до файла доехало именно это
+// (specs/012-arrow-port-spacing).
+
+// minPortGap — порог из раскладки (layout.portGap). Повторён, а не
+// экспортирован: тест меряет файл снаружи и не должен верить числу, которое
+// проверяет.
+const minPortGap = 15.0
+
+// portGap — промежуток между соседними стрелками одной стороны блока.
+type portGap struct {
+	function int64
+	side     rsf.Side
+	arrows   int
+	gap      float64
+}
+
+// portGaps собирает промежутки по файлу.
+//
+// Точка крепления — крайняя точка сектора, чей конец прицеплен к блоку. Одна
+// точка может принадлежать нескольким секторам (поток, уходящий из порта к
+// нескольким получателям), поэтому точки собираются множеством.
+func portGaps(m *rsf.Model) []portGap {
+	type side struct {
+		function int64
+		side     rsf.Side
+	}
+	along := make(map[side]map[float64]bool)
+	var order []side
+	for _, s := range m.Sectors() {
+		if len(s.Points) == 0 {
+			continue
+		}
+		for _, e := range []struct {
+			border *rsf.Border
+			point  rsf.Point
+		}{{s.Start, s.Points[0]}, {s.End, s.Points[len(s.Points)-1]}} {
+			if !e.border.OnFunction() {
+				continue
+			}
+			k := side{e.border.Function, e.border.FunctionType}
+			v := e.point.X // верх и низ блока: стрелки идут вдоль x
+			if k.side == rsf.SideLeft || k.side == rsf.SideRight {
+				v = e.point.Y
+			}
+			if along[k] == nil {
+				along[k] = make(map[float64]bool)
+				order = append(order, k)
+			}
+			along[k][v] = true
+		}
+	}
+
+	var out []portGap
+	for _, k := range order {
+		values := make([]float64, 0, len(along[k]))
+		for v := range along[k] {
+			values = append(values, v)
+		}
+		sort.Float64s(values)
+		for i := 1; i < len(values); i++ {
+			out = append(out, portGap{k.function, k.side, len(values), values[i] - values[i-1]})
+		}
+	}
+	return out
+}
+
+// TestPortSpacingInRamusFiles — мера порога.
+//
+// Авто-раскладка Ramus (`тест.rsf`, модель, которую никто не двигал) под порог
+// не попадает: два входа на высоте 50.4 стоят в 16.8. Только этот файл, а не
+// все три: в `ФормированиеТП.rsf` блок 72 × 50.4 с тремя входами даёт 12.6 —
+// Ramus блоков не растит, и при трёх стрелках на стороне порог нарушил бы и он.
+// Утверждение, стало быть, узкое: при двух стрелках Ramus не теснее 15.
+func TestPortSpacingInRamusFiles(t *testing.T) {
+	file, err := rsf.Open(examplePath("тест.rsf"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := rsf.NewModel(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gaps := portGaps(m)
+	if len(gaps) == 0 {
+		t.Fatal("в «тесте» не нашлось ни одной стороны с двумя стрелками — мерить нечего")
+	}
+	for _, g := range gaps {
+		if g.gap < minPortGap-1e-9 {
+			t.Errorf("работа %d, сторона %s: промежуток %.1f — порог выше того, что делает сам Ramus",
+				g.function, g.side.ICOM(), g.gap)
+		}
+	}
+}
+
+// pinnedSides отмечает стороны блоков, геометрию которых задал автор: размер
+// блока по этой оси или хоть одну стрелку, прицепленную к этой стороне. Там
+// точки крепления ставил не раскладчик, и требовать от них порога нельзя —
+// авторское главнее (Р2).
+func pinnedSides(t *testing.T, path string) map[string]bool {
+	t.Helper()
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	model, _, internal := validate.Build(src)
+	if internal != nil {
+		t.Fatal(internal)
+	}
+	out := make(map[string]bool)
+	if model.Layout == nil {
+		return out
+	}
+	for _, f := range model.Layout.Functions {
+		if f.Height.Set {
+			out[f.Function.Name+"|"+ir.SideIn] = true
+			out[f.Function.Name+"|"+ir.SideOut] = true
+		}
+		if f.Width.Set {
+			out[f.Function.Name+"|"+ir.SideControl] = true
+			out[f.Function.Name+"|"+ir.SideMechanism] = true
+		}
+	}
+	for _, a := range model.Layout.Arrows {
+		for _, s := range a.Segments {
+			for _, e := range []*ir.Endpoint{s.From, s.To} {
+				if e != nil && e.Function.Name != "" {
+					out[e.Function.Name+"|"+e.Side] = true
+				}
+			}
+		}
+	}
+	return out
+}
+
+// TestPortSpacing — ни на одной стороне ни одного блока набора стрелки не
+// стоят теснее порога (FR-001, SC-001).
+//
+// Набор берётся перечнем каталога: новый документ проверяется без правки теста.
+func TestPortSpacing(t *testing.T) {
+	documents, err := filepath.Glob(documentPath("*.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	documents = append(documents,
+		examplePath("chakhokhbili.yaml"),
+		examplePath("skirt.yaml"),
+		examplePath("skirt-full.yaml"),
+	)
+	for _, path := range documents {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+			pinned := pinnedSides(t, path)
+			names := make(map[int64]string)
+			for _, f := range m.Functions() {
+				names[f.ID] = f.Name
+			}
+			for _, g := range portGaps(m) {
+				if pinned[names[g.function]+"|"+g.side.ICOM()] {
+					continue
+				}
+				if g.gap < minPortGap-1e-9 {
+					t.Errorf("«%s», сторона %s: %d стрелок, промежуток %.1f < %.0f",
+						names[g.function], g.side.ICOM(), g.arrows, g.gap, minPortGap)
+				}
+			}
+		})
 	}
 }

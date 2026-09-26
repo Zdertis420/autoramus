@@ -239,3 +239,41 @@ func TestAuthoredFlowFullyDrawn(t *testing.T) {
 		t.Errorf("креплений %d, ожидалось %d: %v", len(attached), len(want), attached)
 	}
 }
+
+// TestPartialOverrideFillsSize — что автор не задал, раскладка дописывает
+// (research Р-8).
+//
+// Схема разрешает положение без размера. Прежде такой блок пропускался
+// целиком, как авторский, и уходил в файл шириной и высотой 0 — не решение
+// автора, а дефект. Заданное же автором не трогается, даже если стрелкам на
+// нём тесно.
+func TestPartialOverrideFillsSize(t *testing.T) {
+	m := model("корень", "первая", "вторая", "третья")
+	crowd(m, "первая", ir.SideIn, 3)
+	crowd(m, "вторая", ir.SideIn, 3)
+	if m.Layout == nil {
+		m.Layout = &ir.Layout{Path: "/layout"}
+	}
+	m.Layout.Functions = append(m.Layout.Functions, &ir.FunctionLayout{
+		Function: ir.Ref{Name: "первая"},
+		X:        ir.Num{Val: 100, Set: true},
+		Y:        ir.Num{Val: 120, Set: true},
+	})
+	pin(m, "вторая", 400, 300, 40, 40)
+	layout.Apply(m)
+	got := boxes(m)
+
+	first := got["первая"]
+	if first.X.Val != 100 || first.Y.Val != 120 {
+		t.Errorf("положение, заданное автором, сдвинулось: (%v, %v)", first.X.Val, first.Y.Val)
+	}
+	if first.Width.Val != 72 || first.Height.Val != 60 {
+		t.Errorf("недостающий размер %v × %v, ожидался 72 × 60 — по трём входам",
+			first.Width.Val, first.Height.Val)
+	}
+
+	second := got["вторая"]
+	if second.Width.Val != 40 || second.Height.Val != 40 {
+		t.Errorf("размер, заданный автором, изменился: %v × %v", second.Width.Val, second.Height.Val)
+	}
+}
