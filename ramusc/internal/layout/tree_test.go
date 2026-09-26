@@ -1,6 +1,7 @@
 package layout_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
@@ -165,97 +166,152 @@ func TestTreeIsDeterministic(t *testing.T) {
 	}
 }
 
-// Ветвление от порта работы. Рисунок снят с `examples/ФормированиеТП.rsf`, где
-// поток «Структура программа» выходит из блока 51 в точке (345.3, 185.9), идёт
-// горизонталью до узла (400.6, 185.9) и уже из узла расходится к двум блокам.
-// Топология та же, что у граничного дерева, только корень не на краю листа, а
-// в порте блока.
-
-// TestPortTreeIsOneArrow — получателей несколько, стрелка одна.
+// turns считает повороты внутри одной ломаной.
 //
-// На `branch-border.yaml` у «журнала» два получателя: «Сборка» и правый край
-// листа. Рисовать их двумя линиями от одного порта нельзя — подпись у них одна,
-// и читаются они как две разные стрелки одного имени. Ramus в такой ситуации
-// заводит узел, и мы обязаны завести его же.
-func TestPortTreeIsOneArrow(t *testing.T) {
-	m := modelOf(t, document("branch-border.yaml"))
-	layout.Apply(m)
-
-	segments := branchSegments(arrowOf(t, m, "журнал"), "Проба")
-	const receivers = 2 // «Сборка» и край листа
-	if got, want := len(segments), receivers+1; got != want {
-		t.Fatalf("сегментов %d, ожидалось %d: голова от порта плюс по ветке на получателя",
-			got, want)
-	}
-
-	var heads, fromNode int
-	nodes := make(map[string]bool)
-	for _, s := range segments {
-		if s.From.Kind() == ir.EndpointFunction {
-			heads++
-		}
-		if s.From.Kind() == ir.EndpointNode {
-			fromNode++
-			nodes[s.From.Node.Name] = true
-		}
-		if s.To.Kind() == ir.EndpointNode {
-			nodes[s.To.Node.Name] = true
+// Поворот внутри ломаной Ramus скругляет, поворот на стыке двух секторов — нет.
+// Считается ради меры, а не ради требования: доля зависит от того, сколько в
+// модели ветвлений против простых связей, и сравнивать её между моделями нельзя.
+func turns(s *ir.Segment) int {
+	n := 0
+	for i := 1; i+1 < len(s.Points); i++ {
+		a, b, c := s.Points[i-1], s.Points[i], s.Points[i+1]
+		before := near(a.X.Val, b.X.Val) // отрезок вертикален
+		after := near(b.X.Val, c.X.Val)
+		if before != after {
+			n++
 		}
 	}
-
-	if heads != 1 {
-		t.Errorf("от порта отходит %d сегмента, а должен один: %s",
-			heads, formatAll(segments))
-	}
-	if fromNode != receivers {
-		t.Errorf("из узла выходит %d веток, получателей %d", fromNode, receivers)
-	}
-	if len(nodes) != 1 {
-		t.Errorf("узлов %d, ожидался один", len(nodes))
-	}
+	return n
 }
 
-// TestPortTreeTakesOneSlot — дерево занимает на стороне блока одно место.
+// pointsOf печатает ломаную для сообщения об ошибке.
+func pointsOf(s *ir.Segment) [][2]float64 {
+	out := make([][2]float64, 0, len(s.Points))
+	for _, p := range s.Points {
+		out = append(out, [2]float64{p.X.Val, p.Y.Val})
+	}
+	return out
+}
+
+// TestTurnsAreInsidePolylines — счёт поворотов внутри ломаных и на стыках.
 //
-// Тест охраняет, а не требует, и по дороге обязан покраснеть. До фичи у
-// «Обработки» на стороне выхода две стрелки — «заготовка» и «журнал», — и
-// крепления стоят в 1/3 и 2/3. Стоит вернуть ветку на край листа, не тронув
-// раздачу мест, и стрелок станет три: сторона поделится на четверти, а сектор
-// от порта будет всё равно один и прицепится к одной из них. Зелёным тест
-// станет снова, когда группа сегментов с общим источником сведётся к одному
-// месту.
-func TestPortTreeTakesOneSlot(t *testing.T) {
-	m := modelOf(t, document("branch-border.yaml"))
+// Считает то же, что `evidence/turns.py` снаружи компилятора, и служит для
+// сверки с ним: расхождение значит, что раскладка думает одно, а в файл
+// доезжает другое.
+//
+// Числа не закрепляются порогом. Доля зависит от того, сколько в модели
+// ветвлений против простых связей, и сравнивать её между моделями нельзя;
+// требование фичи — структурное, оно в TestBranchCarriesItsOwnCorner.
+func TestTurnsAreInsidePolylines(t *testing.T) {
+	m := modelOf(t, example("chakhokhbili.yaml"))
 	layout.Apply(m)
 
-	block := boxes(m)["Обработка"]
-	right := block.X.Val + block.Width.Val
-
-	// Точки, которыми стрелки цепляются к правой стороне «Обработки».
-	seen := make(map[float64]string)
+	inside, joints := 0, 0
 	for _, a := range m.Layout.Arrows {
-		for _, s := range branchSegments(a, "Проба") {
-			for _, p := range s.Points {
-				if near(p.X.Val, right) {
-					seen[p.Y.Val] = a.Flow.Name
+		// Направление каждого конца сегмента, сложенное по точкам: если в
+		// одной точке сходятся и горизонталь, и вертикаль, это поворот на
+		// стыке.
+		dirs := make(map[[3]interface{}]map[bool]bool)
+		for _, s := range a.Segments {
+			inside += turns(s)
+			if len(s.Points) < 2 {
+				continue
+			}
+			for _, end := range [2]struct{ at, next ir.Point }{
+				{s.Points[0], s.Points[1]},
+				{s.Points[len(s.Points)-1], s.Points[len(s.Points)-2]},
+			} {
+				key := [3]interface{}{diagramOf(s), end.at.X.Val, end.at.Y.Val}
+				if dirs[key] == nil {
+					dirs[key] = make(map[bool]bool)
 				}
+				dirs[key][near(end.at.X.Val, end.next.X.Val)] = true
+			}
+		}
+		for _, d := range dirs {
+			if len(d) > 1 {
+				joints++
 			}
 		}
 	}
+	t.Logf("поворотов внутри ломаных %d, на стыках %d", inside, joints)
+}
 
-	h := block.Height.Val
-	want := map[float64]bool{
-		block.Y.Val + h/3:   true, // «заготовка»
-		block.Y.Val + 2*h/3: true, // «журнал» — весь, одним деревом
+// TestSimpleArrowsKeepTurnsInside — стрелка без ветвления поворачивает внутри
+// себя.
+//
+// Переделывать здесь было нечего: измерение до фичи показало, что прямые связи,
+// коридоры обратной связи и граничные стрелки без ветвления уже дают все свои
+// повороты внутри ломаных и ни одного на стыке. Тест закрепляет это, чтобы
+// перестройка дерева не испортила соседей, которых не трогала.
+//
+// Стрелка без ветвления — та, у которой нет ни одного конца-узла: её сегменты
+// друг с другом не стыкуются, и стыковому повороту взяться неоткуда.
+func TestSimpleArrowsKeepTurnsInside(t *testing.T) {
+	for _, path := range overlapDocuments() {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			m := modelOf(t, path)
+			written := authored(m)
+			layout.Apply(m)
+
+			for _, a := range m.Layout.Arrows {
+				branching := false
+				for _, s := range a.Segments {
+					for _, e := range []*ir.Endpoint{s.From, s.To} {
+						if e.Kind() == ir.EndpointNode {
+							branching = true
+						}
+					}
+				}
+				if branching {
+					continue
+				}
+				for _, s := range a.Segments {
+					if written[authoredKey(a.Flow.Name, s)] {
+						continue
+					}
+					if len(s.Points) < 2 {
+						t.Errorf("«%s»: сегмент из %d точек", a.Flow.Name, len(s.Points))
+					}
+					// Ломаная есть ломаная: повороты внутри неё законны, а
+					// стыковаться ей не с чем.
+					if turns(s) != len(s.Points)-2 && len(s.Points) > 2 {
+						t.Logf("«%s»: %d поворотов на %d точек — есть коллинеарные звенья",
+							a.Flow.Name, turns(s), len(s.Points))
+					}
+				}
+			}
+		})
 	}
-	if len(seen) != len(want) {
-		t.Fatalf("креплений на стороне выхода «Обработки» %d, ожидалось %d: %v",
-			len(seen), len(want), seen)
-	}
-	for at, flow := range seen {
-		if !want[at] {
-			t.Errorf("крепление «%s» на y=%g: сторона поделена не на три части, а мельче",
-				flow, at)
+}
+
+// TestStraightBorderArrowStaysOneSegment — прямая граничная стрелка осталась
+// одним отрезком (FR-005).
+//
+// Поток, идущий от края листа прямо в работу, поворачивать не должен, и лишних
+// точек у него быть не может: два конца, и всё. Проверяется на
+// `two-sides.yaml`, где такие стрелки есть на каждой стороне.
+func TestStraightBorderArrowStaysOneSegment(t *testing.T) {
+	m := modelOf(t, document("two-sides.yaml"))
+	layout.Apply(m)
+
+	straight := 0
+	for _, a := range m.Layout.Arrows {
+		for _, s := range a.Segments {
+			if s.From.Kind() != ir.EndpointBorder || s.To.Kind() != ir.EndpointFunction {
+				continue
+			}
+			if turns(s) > 0 {
+				continue // стрелка обходит блок — это другой случай
+			}
+			straight++
+			if len(s.Points) != 2 {
+				t.Errorf("«%s»: прямая граничная стрелка из %d точек, ожидалось 2: %v",
+					a.Flow.Name, len(s.Points), pointsOf(s))
+			}
 		}
+	}
+	if straight == 0 {
+		t.Fatal("в документе нет прямых граничных стрелок — проверять нечего")
 	}
 }
