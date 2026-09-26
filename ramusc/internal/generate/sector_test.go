@@ -2,6 +2,7 @@ package generate_test
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1144,6 +1145,253 @@ func TestPortSpacing(t *testing.T) {
 				if g.gap < minPortGap-1e-9 {
 					t.Errorf("«%s», сторона %s: %d стрелок, промежуток %.1f < %.0f",
 						names[g.function], g.side.ICOM(), g.arrows, g.gap, minPortGap)
+				}
+			}
+		})
+	}
+}
+
+// Подписи (specs/013-arrow-label-overlap).
+
+// labelRow — показанная подпись одного сектора, как она лежит в файле.
+type labelRow struct {
+	sector     int64
+	diagram    int64
+	stream     int64
+	flow       string
+	x, y, w, h float64
+}
+
+// shownLabels собирает показанные подписи файла.
+func shownLabels(t *testing.T, file *rsf.File, m *rsf.Model) []labelRow {
+	t.Helper()
+	props, err := file.Table("attribute_sector_properties")
+	if err != nil {
+		t.Fatal(err)
+	}
+	names := make(map[int64]string)
+	for _, s := range m.Streams() {
+		names[s.ID] = s.Name
+	}
+	num := func(row rsf.Row, field string) float64 {
+		v, err := strconv.ParseFloat(props.Value(row, field).Text, 64)
+		if err != nil {
+			t.Fatalf("%s не число: %q", field, props.Value(row, field).Text)
+		}
+		return v
+	}
+	var out []labelRow
+	for _, s := range m.Sectors() {
+		row, ok := props.First(rsf.Eq("ELEMENT_ID", fmt.Sprint(s.ID)))
+		if !ok || props.Value(row, "SHOW_TEXT").Text != "1" {
+			continue
+		}
+		out = append(out, labelRow{
+			sector: s.ID, diagram: s.Diagram, stream: s.Stream, flow: names[s.Stream],
+			x: num(row, "TEXT_X"), y: num(row, "TEXT_Y"),
+			w: num(row, "TEXT_WIDTH"), h: num(row, "TEXT_HIEGHT"),
+		})
+	}
+	return out
+}
+
+// lineHeight — высота строки подписи в файлах Ramus (Dialog 8).
+const lineHeight = 9.80078125
+
+// TestGlyphWidthsMatchRamus — мера таблицы ширин.
+//
+// Проверяется не наш код, а утверждение о шрифте: однострочная подпись в файле
+// Ramus шириной ровно в своё имя, посчитанное по таблице. Если таблица с
+// файлами Ramus не сходится, всё, что меряется по ней дальше, меряет не то.
+func TestGlyphWidthsMatchRamus(t *testing.T) {
+	checked := 0
+	for _, name := range []string{"ИзготовлениеЮбки.rsf", "ФормированиеТП.rsf"} {
+		file, err := rsf.Open(examplePath(name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		m, err := rsf.NewModel(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, l := range shownLabels(t, file, m) {
+			if l.flow == "" || math.Abs(l.h-lineHeight) > 1e-6 {
+				continue // многострочные: их ширину автор мог выбрать сам
+			}
+			checked++
+			if got := generate.TextWidth(l.flow); math.Abs(got-l.w) > 0.5 {
+				t.Errorf("%s: «%s» по таблице %v, в файле %v", name, l.flow, got, l.w)
+			}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("однострочных подписей не нашлось — мерить было нечего")
+	}
+	t.Logf("однострочных подписей сверено: %d", checked)
+}
+
+// labelDocuments — набор, на котором проверяются подписи: все документы
+// каталога и примеры поставки. Перечень каталога — чтобы новый документ
+// проверялся без правки теста.
+func labelDocuments(t *testing.T) []string {
+	t.Helper()
+	documents, err := filepath.Glob(documentPath("*.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return append(documents,
+		examplePath("chakhokhbili.yaml"),
+		examplePath("skirt.yaml"),
+		examplePath("skirt-full.yaml"),
+		examplePath("diamond-production.yaml"),
+	)
+}
+
+// wordsOf режет имя на слова так же, как Ramus переносит строки
+// (PStringBounder, BreakIterator): по пробелам и после дефиса, дефис остаётся
+// со словом. Своя реализация, а не генератора: тест не должен верить тому,
+// что проверяет.
+func wordsOf(name string) []string {
+	var out []string
+	for _, field := range strings.Fields(name) {
+		for {
+			i := strings.Index(field, "-")
+			if i < 0 || i == len(field)-1 {
+				break
+			}
+			out = append(out, field[:i+1])
+			field = field[i+1:]
+		}
+		out = append(out, field)
+	}
+	return out
+}
+
+// TestLabelFitsWords — рамка подписи вмещает каждое слово имени (FR-005).
+//
+// Ramus переносит текст по ширине рамки, и слово, которое в неё не влезло,
+// режет по буквам: «Помидор|ы». Рамка не уже самого длинного слова — и
+// резать ему нечего.
+func TestLabelFitsWords(t *testing.T) {
+	for _, path := range labelDocuments(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			file, m := buildFrom(t, path)
+			for _, l := range shownLabels(t, file, m) {
+				for _, word := range wordsOf(l.flow) {
+					if need := generate.TextWidth(word); l.w < need-1e-9 {
+						t.Errorf("«%s»: слово «%s» шириной %v не влезает в рамку %v",
+							l.flow, word, need, l.w)
+					}
+				}
+			}
+		})
+	}
+}
+
+// labelBoundaryDocuments — документы, где подписи законно налезают: у стрелки
+// в пределах 34 единиц нет места ни без подписей, ни без блоков (FR-012,
+// названная граница). Отдельным перечнем, чтобы на остальных проверка
+// оставалась безусловной, — как overlapDocuments у каналов.
+var labelBoundaryDocuments = map[string]bool{
+	"labels-crowded.yaml": true,
+}
+
+// overlaps — площадь пересечения двух прямоугольников больше нуля.
+func overlaps(ax, ay, aw, ah, bx, by, bw, bh float64) bool {
+	const eps = 1e-6
+	return math.Min(ax+aw, bx+bw)-math.Max(ax, bx) > eps &&
+		math.Min(ay+ah, by+bh)-math.Max(ay, by) > eps
+}
+
+// TestLabelsDoNotCollide — подписи не лежат друг на друге, на блоках и за
+// листом (FR-001–FR-003, SC-001, SC-002).
+//
+// Проверяется рамка, записанная в файл. Ramus её пересчитывает, но если она
+// не меньше текста — а ширина посчитана метрикой, — его рамка ложится внутрь
+// нашей (specs/013-arrow-label-overlap, research И3), и проверка по нашей
+// честная.
+func TestLabelsDoNotCollide(t *testing.T) {
+	for _, path := range labelDocuments(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			file, m := buildFrom(t, path)
+			names := make(map[int64]string)
+			blocks := make(map[int64][]rsf.Function)
+			for _, f := range m.Functions() {
+				names[f.ID] = f.Name
+				if f.Bounds != nil {
+					blocks[f.Parent] = append(blocks[f.Parent], f)
+				}
+			}
+
+			var problems []string
+			labels := shownLabels(t, file, m)
+			for i, a := range labels {
+				if a.x < 7-1e-9 || a.y < 7-1e-9 || a.x+a.w > 793+1e-9 || a.y+a.h > 437+1e-9 {
+					problems = append(problems, fmt.Sprintf("«%s» выходит за лист: (%v, %v) %v × %v",
+						a.flow, a.x, a.y, a.w, a.h))
+				}
+				for _, b := range labels[i+1:] {
+					if a.diagram == b.diagram && overlaps(a.x, a.y, a.w, a.h, b.x, b.y, b.w, b.h) {
+						problems = append(problems, fmt.Sprintf("диаграмма «%s»: «%s» налезает на «%s»",
+							names[a.diagram], a.flow, b.flow))
+					}
+				}
+				for _, f := range blocks[a.diagram] {
+					r := f.Bounds
+					if overlaps(a.x, a.y, a.w, a.h, r.X, r.Y, r.Width, r.Height) {
+						problems = append(problems, fmt.Sprintf("диаграмма «%s»: «%s» налезает на работу «%s»",
+							names[a.diagram], a.flow, f.Name))
+					}
+				}
+			}
+
+			if labelBoundaryDocuments[filepath.Base(path)] {
+				// Названная граница: наложения ожидаемы, но видны поимённо.
+				for _, p := range problems {
+					t.Log(p)
+				}
+				return
+			}
+			for _, p := range problems {
+				t.Error(p)
+			}
+		})
+	}
+}
+
+// labelReach — дальше этого подпись от своей линии не уходит: самая далёкая
+// подпись в моделях Ramus набора стоит в 34 единицах.
+const labelReach = 34.0
+
+// distanceToOwnLine — от рамки подписи до ближайшего отрезка секторов её
+// потока на её диаграмме.
+func distanceToOwnLine(m *rsf.Model, l labelRow) float64 {
+	best := math.Inf(1)
+	for _, s := range m.Sectors() {
+		if s.Diagram != l.diagram || s.Stream != l.stream {
+			continue
+		}
+		for i := 1; i < len(s.Points); i++ {
+			a, b := s.Points[i-1], s.Points[i]
+			x1, x2 := math.Min(a.X, b.X), math.Max(a.X, b.X)
+			y1, y2 := math.Min(a.Y, b.Y), math.Max(a.Y, b.Y)
+			dx := math.Max(0, math.Max(l.x-x2, x1-(l.x+l.w)))
+			dy := math.Max(0, math.Max(l.y-y2, y1-(l.y+l.h)))
+			best = math.Min(best, math.Hypot(dx, dy))
+		}
+	}
+	return best
+}
+
+// TestLabelNearOwnLine — подпись понятно чья: не дальше 34 единиц от своей
+// линии (FR-004, SC-003), в том числе там, где места нет.
+func TestLabelNearOwnLine(t *testing.T) {
+	for _, path := range labelDocuments(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			file, m := buildFrom(t, path)
+			for _, l := range shownLabels(t, file, m) {
+				if d := distanceToOwnLine(m, l); d > labelReach+1e-9 {
+					t.Errorf("«%s» в %.1f от своей линии — дальше %v", l.flow, d, labelReach)
 				}
 			}
 		})
