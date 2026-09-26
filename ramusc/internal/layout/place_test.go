@@ -1,6 +1,9 @@
 package layout_test
 
 import (
+	"fmt"
+	"math"
+	"sort"
 	"testing"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
@@ -176,4 +179,150 @@ func TestSizeThresholds(t *testing.T) {
 	if got := h / w; got < 0.699 || got > 0.701 {
 		t.Errorf("пропорция при сжатии %v, ожидалось 0.7", got)
 	}
+}
+
+// Рост под стрелки (specs/012-arrow-port-spacing). Модели собираются вручную,
+// как и выше: поведение надо знать при любом числе стрелок, а в настоящих
+// документах их ровно столько, сколько есть.
+
+// crowd вешает на сторону работы потоки, приходящие с края листа: у каждого
+// потребитель есть, производителя на диаграмме нет. Выход — наоборот:
+// производитель есть, потребителя нет, и поток уходит за край. Половинки
+// связей — те же, что строит ir.Build из списков ICOM.
+func crowd(m *ir.Model, function, side string, n int) {
+	for i := range n {
+		flow := fmt.Sprintf("%s/%s/%d", function, side, i)
+		if side == ir.SideOut {
+			m.Links = append(m.Links, produces(function, flow))
+			continue
+		}
+		m.Links = append(m.Links, &ir.Link{
+			Flow: ir.Ref{Name: flow}, To: ir.Ref{Name: function}, Side: side, Sugar: true,
+		})
+	}
+}
+
+// TestBlockGrowsAlongCrowdedSide — блок растёт по той оси, вдоль которой
+// тесно, и ровно до (n+1)·15; другая ось остаётся прежней (FR-004–FR-006).
+func TestBlockGrowsAlongCrowdedSide(t *testing.T) {
+	type sides struct{ in, control, mechanism, out int }
+	cases := []struct {
+		name          string
+		sides         sides
+		width, height float64
+	}{
+		{"три входа", sides{in: 3}, 72, 60},
+		{"четыре механизма", sides{mechanism: 4}, 75, 50.4},
+		{"тесно слева и снизу", sides{in: 4, mechanism: 5}, 90, 75},
+		{"семь входов, два механизма", sides{in: 7, mechanism: 2}, 72, 120},
+		{"выходов больше, чем входов", sides{in: 1, out: 5}, 72, 90},
+		{"две стрелки на каждой стороне", sides{2, 2, 2, 2}, 72, 50.4},
+		{"одна стрелка", sides{in: 1}, 72, 50.4},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			m := model("корень", "первая", "вторая", "третья")
+			crowd(m, "вторая", ir.SideIn, c.sides.in)
+			crowd(m, "вторая", ir.SideControl, c.sides.control)
+			crowd(m, "вторая", ir.SideMechanism, c.sides.mechanism)
+			crowd(m, "вторая", ir.SideOut, c.sides.out)
+			layout.Apply(m)
+
+			got := boxes(m)["вторая"]
+			if got.Width.Val != c.width || got.Height.Val != c.height {
+				t.Errorf("размер %v × %v, ожидался %v × %v",
+					got.Width.Val, got.Height.Val, c.width, c.height)
+			}
+			for _, other := range []string{"первая", "третья"} {
+				if b := boxes(m)[other]; b.Width.Val != 72 || b.Height.Val != 50.4 {
+					t.Errorf("«%s» без стрелок выросла до %v × %v", other, b.Width.Val, b.Height.Val)
+				}
+			}
+		})
+	}
+}
+
+// TestSingleBlockGrowsAroundCentre — единственный блок диаграммы растёт вокруг
+// центра листа, где и стоял (research Р-7). Двенадцать входов — как у A-0
+// «чахохбили».
+func TestSingleBlockGrowsAroundCentre(t *testing.T) {
+	m := model("корень")
+	crowd(m, "корень", ir.SideIn, 12)
+	layout.Apply(m)
+
+	b := boxes(m)["корень"]
+	if b.Width.Val != 72 || b.Height.Val != 195 {
+		t.Errorf("размер %v × %v, ожидался 72 × 195", b.Width.Val, b.Height.Val)
+	}
+	cx, cy := b.X.Val+b.Width.Val/2, b.Y.Val+b.Height.Val/2
+	if math.Abs(cx-(sheetLeft+sheetRight)/2) > 1e-9 || math.Abs(cy-(sheetTop+sheetBottom)/2) > 1e-9 {
+		t.Errorf("центр ушёл в (%v, %v), ожидался центр листа", cx, cy)
+	}
+}
+
+// checkLadder требует от блоков одной диаграммы того, что делает их лестницей:
+// каждый следующий правее и ниже предыдущего, соседи не пересекаются и между
+// ними остаётся промежуток под маршруты, всё внутри листа (FR-007, SC-004).
+func checkLadder(t *testing.T, blocks []*ir.FunctionLayout) {
+	t.Helper()
+	sort.Slice(blocks, func(i, j int) bool { return blocks[i].X.Val < blocks[j].X.Val })
+	const eps = 1e-9
+	for i, b := range blocks {
+		if b.X.Val < sheetLeft || b.X.Val+b.Width.Val > sheetRight ||
+			b.Y.Val < sheetTop || b.Y.Val+b.Height.Val > sheetBottom {
+			t.Errorf("«%s» вне листа: (%v, %v) %v × %v",
+				b.Function.Name, b.X.Val, b.Y.Val, b.Width.Val, b.Height.Val)
+		}
+		if i == 0 {
+			continue
+		}
+		prev := blocks[i-1]
+		if gapX := b.X.Val - (prev.X.Val + prev.Width.Val); gapX < 6-eps {
+			t.Errorf("между «%s» и «%s» по горизонтали %v — меньше просвета",
+				prev.Function.Name, b.Function.Name, gapX)
+		}
+		if b.Y.Val <= prev.Y.Val {
+			t.Errorf("«%s» не ниже «%s»: y %v против %v — лестница сломалась",
+				b.Function.Name, prev.Function.Name, b.Y.Val, prev.Y.Val)
+		}
+	}
+}
+
+// TestGrownLadder — выросшие блоки остаются лестницей.
+func TestGrownLadder(t *testing.T) {
+	t.Run("chakhokhbili.yaml", func(t *testing.T) {
+		m := modelOf(t, example("chakhokhbili.yaml"))
+		layout.Apply(m)
+		for owner, blocks := range blocksByDiagram(m) {
+			if len(blocks) < 2 {
+				continue
+			}
+			t.Run(owner, func(t *testing.T) { checkLadder(t, blocks) })
+		}
+	})
+
+	// Шесть работ, как на A0 «чахохбили»: у пятой семь входов, у четвёртой
+	// пять механизмов — и высота, и ширина растут посреди лестницы.
+	t.Run("шесть работ", func(t *testing.T) {
+		children := names(6)
+		m := model("корень", children...)
+		crowd(m, children[4], ir.SideIn, 7)
+		crowd(m, children[3], ir.SideMechanism, 5)
+		layout.Apply(m)
+		checkLadder(t, blocksByDiagram(m)["корень"])
+	})
+
+	// Крайний случай (research И5): одна высокая работа рядом с низкой.
+	// Сумма высот съедает весь вертикальный размах, и без страховки второй
+	// блок встал бы выше первого.
+	t.Run("высокая рядом с низкой", func(t *testing.T) {
+		m := model("корень", "низкая", "высокая")
+		crowd(m, "высокая", ir.SideIn, 19)
+		layout.Apply(m)
+		blocks := blocksByDiagram(m)["корень"]
+		if h := boxes(m)["высокая"].Height.Val; h != 300 {
+			t.Fatalf("высота %v, ожидалась 300 — случай не тот, что проверяется", h)
+		}
+		checkLadder(t, blocks)
+	})
 }

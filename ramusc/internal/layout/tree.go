@@ -241,9 +241,34 @@ func tree(group []*arrow, boxes map[string]box, blocks []box) []*arrow {
 			// оттуда поворот в блок.
 			line = append(line, onTrunk(side, trunk, t.at))
 		}
-		out = append(out, seg(end{node: name(node)}, t.arrow.to, append(line, t.at)...))
+		out = append(out, seg(end{node: name(node)}, t.arrow.to, branchLine(side, append(line, t.at), blocks)...))
 	}
 	return out
+}
+
+// branchLine — отвод из узла в блок, не задевающий чужих блоков
+// (specs/014-arrows-avoid-blocks).
+//
+// Сверху и снизу магистраль лежит над или под всеми блоками, и отвод
+// спускается к порту вертикалью: в колонке порта над приёмником (и под ним)
+// блоков лестницы нет, отвод чист всегда. Слева магистраль вертикальна, и
+// отвод идёт к порту горизонталью на его высоте, — а выросшие блоки
+// перекрываются по высоте (place), и горизонталь может задеть блок, стоящий
+// левее приёмника. Тогда отвод уходит от узла вдоль магистрали в коридор над
+// блоками или под ними и подходит к порту слева, как вход у around. Узел не
+// двигается: он остаётся одной точкой на магистрали.
+func branchLine(side string, line []point, blocks []box) []point {
+	if side != ir.SideIn {
+		return line
+	}
+	node, port := line[0], line[len(line)-1]
+	back := port.x - stub
+	candidates := [][]point{line}
+	for _, corridor := range []float64{corridorAbove(blocks), corridorBelow(blocks)} {
+		candidates = append(candidates, []point{node, {x: node.x, y: corridor},
+			{x: back, y: corridor}, {x: back, y: port.y}, port})
+	}
+	return dodge(blocks, candidates...)
 }
 
 // alongTrunk отдаёт координату вдоль магистрали: для управления и механизма

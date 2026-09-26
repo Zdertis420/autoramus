@@ -1,6 +1,7 @@
 package layout_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -8,14 +9,19 @@ import (
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 	"github.com/Zdertis420/autoramus/ramusc/internal/layout"
 	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
+	"github.com/Zdertis420/autoramus/ramusc/internal/syntax"
 	"github.com/Zdertis420/autoramus/ramusc/internal/validate"
 )
 
 // Раскладка проверяется на настоящих документах проекта: skirt.yaml написан без
 // единой координаты и ради него фича и затевалась.
 
-// modelOf разбирает документ проекта в IR. Валидатор нужен не ради проверки —
-// раскладка получает документ уже проверенным, — а потому что IR строит он.
+// modelOf разбирает документ проекта в IR — ещё не разложенный.
+//
+// Валидатор проверяет, что документ годен: раскладка получает его уже
+// проверенным. Но модель берётся не у него: validate.Build раскладывает её
+// последней ступенью (specs/014), а тестам раскладки нужна модель до неё — они
+// сами дописывают авторскую геометрию и зовут Apply.
 func modelOf(t *testing.T, path string) *ir.Model {
 	t.Helper()
 
@@ -23,13 +29,15 @@ func modelOf(t *testing.T, path string) *ir.Model {
 	if err != nil {
 		t.Fatal(err)
 	}
-	model, diags, internal := validate.Build(src)
+	diags, internal := validate.Source(src)
 	if internal != nil {
 		t.Fatal(internal)
 	}
 	if diags.HasErrors() {
 		t.Fatalf("документ %s невалиден", path)
 	}
+	root, _ := syntax.Load(src)
+	model := ir.Build(root)
 	if model == nil {
 		t.Fatalf("модель по документу %s не построена", path)
 	}
@@ -163,5 +171,31 @@ func TestMatchesRamus(t *testing.T) {
 				f.Name, got.X.Val, got.Y.Val, got.Width.Val, got.Height.Val,
 				f.Bounds.X, f.Bounds.Y, f.Bounds.Width, f.Bounds.Height)
 		}
+	}
+}
+
+// TestApplyIsIdempotent — повторная раскладка ничего не меняет.
+//
+// Всё, что раскладка дописала, при втором проходе выглядит авторским и
+// остаётся как есть. На этом стоит ступень геометрии в validate.Build
+// (specs/014-arrows-avoid-blocks, research И4): модель приходит в компиляцию
+// уже разложенной, и если бы второй Apply её менял, файл зависел бы от того,
+// сколько раз его раскладывали.
+func TestApplyIsIdempotent(t *testing.T) {
+	for _, path := range []string{
+		example("chakhokhbili.yaml"),
+		example("skirt-full.yaml"),
+		example("diamond-production.yaml"),
+		document("feedback.yaml"),
+	} {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			m := modelOf(t, path)
+			layout.Apply(m)
+			first := fmt.Sprintf("%+v", *m.Layout)
+			layout.Apply(m)
+			if second := fmt.Sprintf("%+v", *m.Layout); second != first {
+				t.Error("второй Apply изменил раскладку")
+			}
+		})
 	}
 }
