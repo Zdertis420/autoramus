@@ -14,6 +14,7 @@ import (
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 	"github.com/Zdertis420/autoramus/ramusc/internal/layout"
 	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
+	"github.com/Zdertis420/autoramus/ramusc/internal/syntax"
 	"github.com/Zdertis420/autoramus/ramusc/internal/validate"
 )
 
@@ -1291,7 +1292,7 @@ func TestLabelFitsWords(t *testing.T) {
 // labelBoundaryDocuments — документы, где подписи законно налезают: у стрелки
 // в пределах 34 единиц нет места ни без подписей, ни без блоков (FR-012,
 // названная граница). Отдельным перечнем, чтобы на остальных проверка
-// оставалась безусловной, — как overlapDocuments у каналов.
+// оставалась безусловной.
 var labelBoundaryDocuments = map[string]bool{
 	"labels-crowded.yaml": true,
 }
@@ -1392,6 +1393,295 @@ func TestLabelNearOwnLine(t *testing.T) {
 			for _, l := range shownLabels(t, file, m) {
 				if d := distanceToOwnLine(m, l); d > labelReach+1e-9 {
 					t.Errorf("«%s» в %.1f от своей линии — дальше %v", l.flow, d, labelReach)
+				}
+			}
+		})
+	}
+}
+
+// authoredArrows отмечает пары «поток + диаграмма», которые автор нарисовал
+// сам: их точки не прокладывала раскладка, и спрашивать с них «не сквозь
+// блок» — значит спрашивать с автора; для этого есть предупреждение
+// arrow_through_block. Диаграмма зовётся работой-владельцем, контекстная —
+// пустой строкой.
+//
+// IR строится прямо из разбора, без validate.Build: тот раскладывает модель, и
+// после него все стрелки выглядят авторскими.
+func authoredArrows(t *testing.T, path string) map[string]bool {
+	t.Helper()
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root, _ := syntax.Load(src)
+	model := ir.Build(root)
+	out := make(map[string]bool)
+	if model == nil || model.Layout == nil {
+		return out
+	}
+	for _, a := range model.Layout.Arrows {
+		for _, s := range a.Segments {
+			diagram := s.On.Name
+			if s.Context {
+				diagram = ""
+			}
+			out[a.Flow.Name+"|"+diagram] = true
+		}
+	}
+	return out
+}
+
+// TestNoArrowThroughBlock — ни один отрезок стрелки, проложенной раскладкой,
+// не проходит внутри блока своей диаграммы (FR-001, FR-002, SC-002).
+//
+// Мерится собранный файл, после разведения по каналам и подписей: спрос с
+// того, что увидит автор. Касание стороны блока — не пересечение.
+func TestNoArrowThroughBlock(t *testing.T) {
+	for _, path := range labelDocuments(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+			authored := authoredArrows(t, path)
+
+			names := make(map[int64]string)
+			blocks := make(map[int64][]rsf.Function)
+			for _, f := range m.Functions() {
+				names[f.ID] = f.Name
+				if f.Bounds != nil {
+					blocks[f.Parent] = append(blocks[f.Parent], f)
+				}
+			}
+			streams := make(map[int64]string)
+			for _, s := range m.Streams() {
+				streams[s.ID] = s.Name
+			}
+
+			const eps = 1e-6
+			for _, s := range m.Sectors() {
+				flow := streams[s.Stream]
+				diagram := names[s.Diagram] // у контекстной владельца-работы нет — пусто
+				if authored[flow+"|"+diagram] {
+					continue
+				}
+				for i := 1; i < len(s.Points); i++ {
+					a, b := s.Points[i-1], s.Points[i]
+					x1, x2 := math.Min(a.X, b.X), math.Max(a.X, b.X)
+					y1, y2 := math.Min(a.Y, b.Y), math.Max(a.Y, b.Y)
+					for _, f := range blocks[s.Diagram] {
+						r := f.Bounds
+						if x2 > r.X+eps && x1 < r.X+r.Width-eps && y2 > r.Y+eps && y1 < r.Y+r.Height-eps {
+							t.Errorf("«%s» проходит сквозь работу «%s»: (%.1f, %.1f) → (%.1f, %.1f)",
+								flow, strings.TrimSpace(f.Name), a.X, a.Y, b.X, b.Y)
+						}
+					}
+				}
+			}
+		})
+	}
+}
+
+// Пересечения стрелок (specs/015-remove-double-crossings). Считаются ровно так,
+// как evidence/double.py, по которому сняты потолки: иначе тест сторожил бы не
+// те числа.
+
+// arrowLines — ломаные секторов по стрелкам: «диаграмма + поток». Все сегменты
+// одного потока на диаграмме, включая ветки дерева, — одна стрелка: отвод,
+// пересекающий собственную магистраль, пересечением не считается. Сектор без
+// потока — стрелка сам по себе.
+func arrowLines(m *rsf.Model) (map[[2]int64][][]rsf.Point, [][2]int64) {
+	out := make(map[[2]int64][][]rsf.Point)
+	var order [][2]int64
+	for _, s := range m.Sectors() {
+		k := [2]int64{s.Diagram, s.Stream}
+		if s.Stream < 0 {
+			k[1] = -s.ID - 1
+		}
+		if _, seen := out[k]; !seen {
+			order = append(order, k)
+		}
+		out[k] = append(out[k], s.Points)
+	}
+	return out, order
+}
+
+// crossAt — точка, где горизонталь одного отрезка проходит строго внутри
+// вертикали другого. Касание концами — не пересечение.
+func crossAt(a, b, c, d rsf.Point) (rsf.Point, bool) {
+	const eps = 1e-6
+	ah, ch := math.Abs(a.Y-b.Y) < eps, math.Abs(c.Y-d.Y) < eps
+	if ah == ch {
+		return rsf.Point{}, false
+	}
+	if !ah {
+		a, b, c, d = c, d, a, b
+	}
+	x1, x2 := math.Min(a.X, b.X), math.Max(a.X, b.X)
+	y1, y2 := math.Min(c.Y, d.Y), math.Max(c.Y, d.Y)
+	if x1+eps < c.X && c.X < x2-eps && y1+eps < a.Y && a.Y < y2-eps {
+		return rsf.Point{X: math.Round(c.X*10) / 10, Y: math.Round(a.Y*10) / 10}, true
+	}
+	return rsf.Point{}, false
+}
+
+// crossings — сколько различных точек пересечения у двух стрелок.
+func crossings(p, q [][]rsf.Point) int {
+	seen := make(map[[2]float64]bool)
+	for _, pl := range p {
+		for _, ql := range q {
+			for i := 1; i < len(pl); i++ {
+				for j := 1; j < len(ql); j++ {
+					if at, ok := crossAt(pl[i-1], pl[i], ql[j-1], ql[j]); ok {
+						seen[[2]float64{at.X, at.Y}] = true
+					}
+				}
+			}
+		}
+	}
+	return len(seen)
+}
+
+// totalCrossings — пересечения всех пар разных стрелок одной диаграммы.
+func totalCrossings(m *rsf.Model) int {
+	lines, order := arrowLines(m)
+	n := 0
+	for i, a := range order {
+		for _, b := range order[i+1:] {
+			if a[0] == b[0] {
+				n += crossings(lines[a], lines[b])
+			}
+		}
+	}
+	return n
+}
+
+// crossingCeilings — потолки пересечений по документам: замер
+// evidence/double.py. Храповик: снижается, когда раскладка становится лучше, и
+// не поднимается молча. Новый документ обязан получить свой.
+//
+// Сняты до фичи 015 и опущены после неё там, где она убрала лишние
+// пересечения: «чахохбили» 158 → 156, channels-pair 2 → 0, channels-trunk 5 → 4.
+var crossingCeilings = map[string]int{
+	"branch-border.yaml":      2,
+	"channels-feedback.yaml":  16,
+	"channels-pair.yaml":      0,
+	"channels-trunk.yaml":     4,
+	"dfd-tunnel.yaml":         0,
+	"feedback.yaml":           1,
+	"labels-crowded.yaml":     0,
+	"nested.yaml":             2,
+	"staircase.yaml":          0,
+	"two-sides.yaml":          1,
+	"chakhokhbili.yaml":       156,
+	"diamond-production.yaml": 10,
+	"skirt-full.yaml":         16,
+	"skirt.yaml":              8,
+}
+
+// TestCrossingsDoNotGrow — число пересечений ни на одном документе не растёт
+// (FR-003): убрав лишнее пересечение в одном месте, раскладка не вправе
+// добавить новое в другом.
+func TestCrossingsDoNotGrow(t *testing.T) {
+	for _, path := range labelDocuments(t) {
+		name := filepath.Base(path)
+		t.Run(name, func(t *testing.T) {
+			ceiling, ok := crossingCeilings[name]
+			if !ok {
+				t.Fatalf("у документа нет потолка пересечений: снимите его evidence/double.py и впишите в crossingCeilings")
+			}
+			_, m := buildFrom(t, path)
+			got := totalCrossings(m)
+			if got > ceiling {
+				t.Errorf("пересечений %d, потолок %d", got, ceiling)
+			}
+			t.Logf("пересечений %d, потолок %d", got, ceiling)
+		})
+	}
+}
+
+// withLine отдаёт копию стрелки, где отрезок i..i+1 ломаной lines[li] сдвинут
+// поперёк себя на координату v: у вертикали меняется x, у горизонтали — y.
+func withLine(lines [][]rsf.Point, li, i int, vertical bool, v float64) [][]rsf.Point {
+	out := make([][]rsf.Point, len(lines))
+	copy(out, lines)
+	moved := append([]rsf.Point(nil), lines[li]...)
+	for _, k := range []int{i, i + 1} {
+		if vertical {
+			moved[k].X = v
+		} else {
+			moved[k].Y = v
+		}
+	}
+	out[li] = moved
+	return out
+}
+
+// TestNoAvoidableDoubleCrossing — ни одна пара стрелок не пересекает друг друга
+// лишний раз (FR-002, SC-001).
+//
+// Лишнее — то, что исчезает, если поменять местами соседние параллельные
+// отрезки двух стрелок: одну и ту же линию разделили, но разошлись не в ту
+// сторону. У Ramus таких ноль на всех трёх файлах; пересечения, которые обменом
+// не снимаются, — входы поперёк отводов дерева механизмов — есть и у него, и
+// сюда не относятся. Порт evidence/swap.py.
+//
+// Крайние отрезки ломаной не трогаются: они прицеплены к блоку, краю листа или
+// узлу, и двигать их значит отцепить стрелку.
+func TestNoAvoidableDoubleCrossing(t *testing.T) {
+	const near = 2 * 6.0 // два шага канала
+	const eps = 1e-6
+	for _, path := range labelDocuments(t) {
+		t.Run(filepath.Base(path), func(t *testing.T) {
+			_, m := buildFrom(t, path)
+			streams := make(map[int64]string)
+			for _, s := range m.Streams() {
+				streams[s.ID] = s.Name
+			}
+			lines, order := arrowLines(m)
+			for x, pk := range order {
+				for _, qk := range order[x+1:] {
+					if pk[0] != qk[0] {
+						continue
+					}
+					P, Q := lines[pk], lines[qk]
+					was := crossings(P, Q)
+					if was < 2 {
+						continue
+					}
+					best := was
+					for pi, pl := range P {
+						for a := 1; a+2 < len(pl); a++ {
+							for qi, ql := range Q {
+								for b := 1; b+2 < len(ql); b++ {
+									p1, p2, q1, q2 := pl[a], pl[a+1], ql[b], ql[b+1]
+									for _, vertical := range []bool{true, false} {
+										at := func(p rsf.Point) (float64, float64) {
+											if vertical {
+												return p.X, p.Y
+											}
+											return p.Y, p.X
+										}
+										pc, plo := at(p1)
+										pc2, phi := at(p2)
+										qc, qlo := at(q1)
+										qc2, qhi := at(q2)
+										if math.Abs(pc-pc2) > eps || math.Abs(qc-qc2) > eps || math.Abs(pc-qc) > near {
+											continue
+										}
+										plo, phi = math.Min(plo, phi), math.Max(plo, phi)
+										qlo, qhi = math.Min(qlo, qhi), math.Max(qlo, qhi)
+										if math.Min(phi, qhi) <= math.Max(plo, qlo) {
+											continue // вдоль линии не соседствуют
+										}
+										now := crossings(withLine(P, pi, a, vertical, qc), withLine(Q, qi, b, vertical, pc))
+										best = min(best, now)
+									}
+								}
+							}
+						}
+					}
+					if best < was {
+						t.Errorf("«%s» и «%s»: пересечений %d, а после обмена соседних полос — %d",
+							streams[pk[1]], streams[qk[1]], was, best)
+					}
 				}
 			}
 		})

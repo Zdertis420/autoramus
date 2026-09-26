@@ -13,6 +13,7 @@ import (
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/diag"
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
+	"github.com/Zdertis420/autoramus/ramusc/internal/layout"
 	"github.com/Zdertis420/autoramus/ramusc/internal/schema"
 	"github.com/Zdertis420/autoramus/ramusc/internal/syntax"
 )
@@ -62,6 +63,32 @@ func Build(src []byte) (*ir.Model, diag.List, error) {
 
 	model := ir.Build(root)
 	diags = append(diags, Semantic(model)...)
+	if diags.HasErrors() {
+		diags.Sort()
+		return model, diags, nil
+	}
+
+	// Последняя ступень — раскладка и проверка геометрии
+	// (specs/014-arrows-avoid-blocks). Предупреждение о стрелке сквозь блок
+	// требует координат блоков, а часть из них расставляет раскладка; и оно
+	// обязано быть тем же в validate и в компиляции и проверяться эталоном —
+	// значит, рождается здесь, а не в команде после сборки. Лесенка
+	// соблюдена: раскладка идёт только без ошибок, а ступень геометрии даёт
+	// лишь предупреждения.
+	//
+	// Авторские сегменты запоминаются до раскладки: после неё всё, что она
+	// дописала, неотличимо от написанного автором. Повторный layout.Apply в
+	// компиляции ничего не меняет — раскладка идемпотентна.
+	authored := make(map[*ir.Segment]bool)
+	if model.Layout != nil {
+		for _, a := range model.Layout.Arrows {
+			for _, s := range a.Segments {
+				authored[s] = true
+			}
+		}
+	}
+	layout.Apply(model)
+	diags = append(diags, Geometry(model, authored)...)
 	diags.Sort()
 	return model, diags, nil
 }

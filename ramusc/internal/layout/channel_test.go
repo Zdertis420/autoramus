@@ -16,16 +16,6 @@ import (
 // проверяется только наложение отрезком. Разница между тем и другим измерима:
 // общая часть двух сегментов имеет нулевую длину или ненулевую.
 
-// overlapDocuments — набор для проверки наложений.
-//
-// Шире общего: сюда входит `examples/chakhokhbili.yaml`, в общий перечень не
-// попавшая из-за постороннего дефекта (см. комментарий к documents()). Наложений
-// в ней больше, чем во всех пробах вместе, и отказываться от неё из-за чужой
-// беды было бы расточительством.
-func overlapDocuments() []string {
-	return append(documents(), example("chakhokhbili.yaml"))
-}
-
 // piece — прямолинейный участок ломаной.
 type piece struct {
 	flow     string
@@ -96,7 +86,7 @@ func sameLine(a, b piece) bool {
 // Стрелка — пара «поток + диаграмма». Участки одной стрелки пропускаются: их
 // общая магистраль намеренна, она и есть ветвление.
 func TestNoSegmentOverlap(t *testing.T) {
-	for _, path := range overlapDocuments() {
+	for _, path := range documents() {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			m := modelOf(t, path)
 			layout.Apply(m)
@@ -194,7 +184,7 @@ func flowsOn(set map[string]bool) string {
 // побитово. Обход отображения, попавший в раздачу каналов, всплывёт здесь, а не
 // в чужом диффе через три месяца (принцип III конституции).
 func TestChannelsAreStable(t *testing.T) {
-	for _, path := range overlapDocuments() {
+	for _, path := range documents() {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			first, second := modelOf(t, path), modelOf(t, path)
 			layout.Apply(first)
@@ -219,6 +209,12 @@ func TestChannelsAreStable(t *testing.T) {
 // вертикаль. Первый по порядку документа обязан остаться ровно там, где его
 // поставила формула, — посередине промежутка, — а подвинуться обязан второй, и
 // ровно на один шаг канала.
+//
+// В какую сторону — не правило порядка, а следствие пересечений. Прежде второй
+// уходил на «+шаг», потому что «+» стоял в переборе первым, и дважды пересекал
+// первого. Теперь сторона выбирается по числу пересечений
+// (specs/015-remove-double-crossings), и с «−шага» второй первого не пересекает
+// вовсе.
 //
 // Это и есть FR-008 в самом узком месте: разведение не вправе двигать рисунок
 // шире необходимого. Что документ, где разводить нечего вовсе, не меняется ни на
@@ -249,8 +245,8 @@ func TestCanonicalLaneKept(t *testing.T) {
 		t.Errorf("«первый» съехал на x=%g, хотя пришёл за линией первым: канон %g",
 			lanes["первый"], canonical)
 	}
-	if got, want := lanes["второй"], canonical+step; got != want {
-		t.Errorf("«второй» встал на x=%g, ожидалось %g — один шаг канала от канона",
+	if got, want := lanes["второй"], canonical-step; got != want {
+		t.Errorf("«второй» встал на x=%g, ожидалось %g — один шаг канала от канона, в сторону без пересечений с «первым»",
 			got, want)
 	}
 }
