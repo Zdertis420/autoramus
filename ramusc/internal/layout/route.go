@@ -31,8 +31,10 @@ func route(a *arrow, from, to point, blocks []box) []point {
 	case a.from.onBorder():
 		return clean(fromBorder(a, from, to, blocks))
 	case a.to.onBorder():
-		// Выход наружу: горизонталь до правого края листа.
-		return clean([]point{from, to})
+		// Выход наружу: горизонталь до правого края листа. Правее и ниже может
+		// стоять выросший блок, перекрывающийся с источником по высоте
+		// (place), — тогда горизонталь уходит в коридор.
+		return dodge(blocks, append([][]point{{from, to}}, around(from, to, toBorder, blocks)...)...)
 	case backward(a, blocks):
 		return clean(feedback(a, from, to, blocks))
 	default:
@@ -58,20 +60,57 @@ func backward(a *arrow, blocks []box) bool {
 func forward(a *arrow, from, to point, blocks []box) []point {
 	switch a.to.side {
 	case ir.SideControl:
-		// Вправо до вертикали порта, вниз в верх блока.
-		return []point{from, {x: to.x, y: from.y}, to}
+		// Вправо до вертикали порта, вниз в верх блока — пока приёмник ниже
+		// точки выхода.
+		//
+		// Выросшие блоки перекрываются по высоте (place), и приёмник может
+		// подняться выше выхода источника. Тогда горизонталь прошла бы сквозь
+		// него, и стрелка обходит сверху: вправо до середины промежутка,
+		// вверх над приёмником, вправо до порта, вниз. Обход — только по
+		// нужде: где хватает прежнего шаблона, рисунок не меняется.
+		//
+		// Оба шаблона — первыми кандидатами, в прежнем порядке; за ними те же
+		// на соседних полосах и коридор над блоками: горизонталь на высоте
+		// выхода может задеть блок между источником и приёмником.
+		above := to.y - stub
+		mid := middle(a, from, to, blocks)
+		climb := func(lane float64) []point {
+			return []point{from, {x: lane, y: from.y}, {x: lane, y: above}, {x: to.x, y: above}, to}
+		}
+		var candidates [][]point
+		if from.y <= above {
+			candidates = append(candidates, []point{from, {x: to.x, y: from.y}, to})
+		}
+		candidates = append(candidates, climb(mid))
+		candidates = append(candidates, laned(mid, blocks, climb)...)
+		return dodge(blocks, append(candidates, around(from, to, ir.SideControl, blocks)...)...)
 
 	case ir.SideMechanism:
 		// Механизм приходит снизу, поэтому стрелка обязана обогнуть блок и
 		// подойти из-под него: вход сверху прошёл бы сквозь работу.
+		// Вертикаль посередине промежутка может задеть блок между источником
+		// и приёмником — тогда соседние полосы и коридор.
 		below := corridorBelow(blocks)
-		return []point{from, {x: middle(a, from, to, blocks), y: from.y},
-			{x: middle(a, from, to, blocks), y: below}, {x: to.x, y: below}, to}
+		build := func(lane float64) []point {
+			return []point{from, {x: lane, y: from.y}, {x: lane, y: below}, {x: to.x, y: below}, to}
+		}
+		mid := middle(a, from, to, blocks)
+		candidates := append([][]point{build(mid)}, laned(mid, blocks, build)...)
+		return dodge(blocks, append(candidates, around(from, to, ir.SideMechanism, blocks)...)...)
 
 	default: // ir.SideIn
 		// Вправо, вниз, вправо. Вертикаль — ровно посередине промежутка.
+		//
+		// Через одну ступень лестницы середина промежутка — центр пропущенного
+		// блока, и шаблон ведёт стрелку сквозь него. Шаблон остаётся первым
+		// кандидатом — чистые связи не меняются, и `тест.rsf` по-прежнему
+		// совпадает до знака, — а за ним идут соседние полосы и коридоры.
+		build := func(lane float64) []point {
+			return []point{from, {x: lane, y: from.y}, {x: lane, y: to.y}, to}
+		}
 		mid := middle(a, from, to, blocks)
-		return []point{from, {x: mid, y: from.y}, {x: mid, y: to.y}, to}
+		candidates := append([][]point{build(mid)}, laned(mid, blocks, build)...)
+		return dodge(blocks, append(candidates, around(from, to, ir.SideIn, blocks)...)...)
 	}
 }
 
@@ -112,11 +151,17 @@ func feedback(a *arrow, from, to point, blocks []box) []point {
 	default: // ir.SideIn
 		// Вход приходит слева, поэтому мало обойти блоки — надо ещё зайти за
 		// приёмник и вернуться вправо.
-		below := corridorBelow(blocks)
-		return pick(blocks, lanes(to.x-stub, blocks), func(back float64) []point {
-			return []point{from, {x: turn, y: from.y}, {x: turn, y: below},
-				{x: back, y: below}, {x: back, y: to.y}, to}
-		})
+		//
+		// Коридор под блоками — первым, над ними — запасным: полосы, закрытые
+		// снизу, бывают открыты сверху.
+		var candidates [][]point
+		for _, corridor := range []float64{corridorBelow(blocks), corridorAbove(blocks)} {
+			for _, back := range lanes(to.x-stub, blocks) {
+				candidates = append(candidates, []point{from, {x: turn, y: from.y}, {x: turn, y: corridor},
+					{x: back, y: corridor}, {x: back, y: to.y}, to})
+			}
+		}
+		return dodge(blocks, candidates...)
 	}
 }
 
@@ -173,6 +218,88 @@ func pick(blocks []box, candidates []float64, build func(lane float64) []point) 
 		}
 	}
 	return build(candidates[0])
+}
+
+// Обход блоков (specs/014-arrows-avoid-blocks).
+//
+// Шаблоны маршрутов сняты с `тест.rsf`, но строятся без оглядки на блоки: у
+// прямой связи через одну ступень лестницы вертикаль середины промежутка
+// попадает ровно в центр пропущенного блока — при постоянном шаге так при
+// любых шаге и ширине. Лечится не новым шаблоном, а перебором готового
+// списка, как pick() у обратной связи: сначала прежний шаблон, затем тот же на
+// соседних полосах, затем путь через коридор над блоками и под ними. Первый,
+// кто никого не задевает, и берётся. Поиска пути здесь нет — список конечный,
+// порядок определён, и от запуска к запуску выбор один.
+
+// dodge отдаёт первый кандидат, который не задевает ни одного блока.
+//
+// Чистого нет — первый, то есть прежний шаблон: так бывает, только когда
+// автор сам положил свои блоки внахлёст (FR-005), и обойти их нечем. В
+// собственной лестнице раскладки последний кандидат — коридор — чист всегда
+// (см. around), и сюда дело не доходит.
+func dodge(blocks []box, candidates ...[]point) []point {
+	for _, c := range candidates {
+		if c = clean(c); !crossesRoute(c, blocks) {
+			return c
+		}
+	}
+	return clean(candidates[0])
+}
+
+// laned строит тот же шаблон на полосах из lanes(), ближайших к прежней, —
+// кроме самой прежней: она уже первый кандидат.
+func laned(want float64, blocks []box, build func(lane float64) []point) [][]point {
+	var out [][]point
+	for _, lane := range lanes(want, blocks)[1:] {
+		out = append(out, build(lane))
+	}
+	return out
+}
+
+// toBorder — конец стрелки на правом краю листа; для around он подход, как и
+// стороны блока.
+const toBorder = "border"
+
+// around — обходы через коридоры: вбок от своей стороны на stub, коридор над
+// всеми блоками или под ними, подход к концу с его стороны.
+//
+// Почему это чисто всегда в лестнице, которую расставила раскладка. Коридоры
+// лежат над самым высоким и под самым низким блоком — их не пересекает никто.
+// Вертикаль в stub за правым краем источника свободна: блоки левее кончаются
+// раньше, блоки правее начинаются не ближе просвета gap, а stub = gap, и
+// вертикаль в худшем случае касается соседа, не входя в него (страховка
+// промежутка в place). Вертикаль в stub перед левым краем приёмника — то же в
+// зеркале. Вход сверху спускается из коридора прямо в порт: в колонке
+// приёмника над ним блоков нет, левее стоящие кончаются раньше.
+func around(from, to point, approach string, blocks []box) [][]point {
+	exit := from.x + stub
+	var corridors []float64
+	switch approach {
+	case ir.SideControl:
+		corridors = []float64{corridorAbove(blocks)}
+	case ir.SideMechanism:
+		corridors = []float64{corridorBelow(blocks)}
+	default:
+		corridors = []float64{corridorAbove(blocks), corridorBelow(blocks)}
+	}
+
+	var out [][]point
+	for _, y := range corridors {
+		path := []point{from, {x: exit, y: from.y}, {x: exit, y: y}}
+		switch approach {
+		case ir.SideIn:
+			back := to.x - stub
+			path = append(path, point{x: back, y: y}, point{x: back, y: to.y}, to)
+		case toBorder:
+			// Конец на краю листа вправе сменить высоту: уровни сшиты номером
+			// узла, а не координатой.
+			path = append(path, point{x: sheetRight, y: y})
+		default: // управление, механизм: вертикалью в порт
+			path = append(path, point{x: to.x, y: y}, to)
+		}
+		out = append(out, path)
+	}
+	return out
 }
 
 // crossesRoute сообщает, задевает ли ломаная хоть один блок.

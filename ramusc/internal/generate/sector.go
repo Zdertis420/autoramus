@@ -2,7 +2,6 @@ package generate
 
 import (
 	"fmt"
-	"math"
 
 	"github.com/Zdertis420/autoramus/ramusc/internal/ir"
 	"github.com/Zdertis420/autoramus/ramusc/internal/rsf"
@@ -20,15 +19,9 @@ const (
 	sectorTildaPos  = "0.0"
 	sectorShowText  = "1"
 
-	// Высота строки подписи при шрифте Dialog 10. В файлах она кратна числу
+	// Высота строки подписи при шрифте Dialog 8. В файлах она кратна числу
 	// строк: 9.8 — одна, 19.6 — две, 39.2 — четыре.
 	sectorLineHeight = 9.80078125
-	// Ширина знака. Не метрика шрифта, а оценка по настоящим подписям:
-	// «вход2» 5 рун → 21, «контроль» 8 → 33, «Детали изделия» 14 → 58,
-	// «Швеёно-вышивальгая машинка» 26 → 112. Выходит 4.1…4.6 на руну.
-	// Скорее всего Ramus пересчитает её при отрисовке — значение выглядит
-	// кэшем, — но оставлять ноль нельзя: у подписанных стрелок рамка непустая.
-	sectorRuneWidth = 4.3
 )
 
 // Подпись несёт не всякий сектор, а один на всю стрелку.
@@ -164,6 +157,10 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 	type owner struct{ diagram, stream int64 }
 	ordinates := make(map[owner]*lines)
 
+	// Подписи — до записи: место одной зависит от мест всех остальных на
+	// той же диаграмме.
+	labels := placeLabels(source)
+
 	for _, arrow := range source.Layout.Arrows {
 		stream, ok := streams[arrow.Flow.Name]
 		if !ok {
@@ -204,6 +201,7 @@ func writeSectors(m *rsf.Model, source *ir.Model, functions, streams map[string]
 				counters:   c,
 				nodes:      nodes,
 				ordinates:  shared,
+				label:      labels[seg],
 			}); err != nil {
 				return fmt.Errorf("поток «%s»: %w", arrow.Flow.Name, err)
 			}
@@ -231,6 +229,9 @@ type sector struct {
 	// всех его секторов, чтобы концы, сходящиеся в узле, были для Ramus одной
 	// точкой.
 	ordinates *lines
+	// label — рамка подписи, если сегмент её несёт; поставлена заранее,
+	// вместе со всеми подписями диаграммы.
+	label label
 }
 
 // diagramID отвечает, на чьей диаграмме нарисован сегмент.
@@ -328,7 +329,7 @@ func writeSector(m *rsf.Model, s sector) error {
 	var box label
 	if labeled(s.segment) {
 		show, transparent = sectorShowText, sectorTranspShown
-		box = labelBox(s.flow, s.segment)
+		box = s.label
 	}
 	rows = append(rows, struct {
 		table  string
@@ -422,45 +423,7 @@ func labeled(seg *ir.Segment) bool {
 	return seg.From.Kind() != ir.EndpointNode
 }
 
-// label — рамка подписи стрелки.
+// label — рамка подписи стрелки. Место и размер ей даёт placeLabels
+// (label.go): подпись не видит соседей, пока её ставят по одной, и потому
+// ставится проходом по всем подписям диаграммы разом.
 type label struct{ x, y, width, height float64 }
-
-// labelBox считает, где и какой величины стоять подписи.
-//
-// Ставится она на середине самого длинного отрезка: там для неё больше всего
-// места, и она реже налезает на соседнюю стрелку. Размер — оценка: настоящей
-// метрики шрифта у компилятора нет, а нулевая рамка в файлах означает «подпись
-// не показывать».
-func labelBox(flow string, seg *ir.Segment) label {
-	width := float64(len([]rune(flow))) * sectorRuneWidth
-	at := middlePoint(seg)
-	return label{
-		x:      at.x,
-		y:      at.y,
-		width:  width,
-		height: sectorLineHeight,
-	}
-}
-
-type xy struct{ x, y float64 }
-
-// middlePoint — середина самого длинного отрезка ломаной.
-func middlePoint(seg *ir.Segment) xy {
-	if len(seg.Points) == 0 {
-		return xy{}
-	}
-	if len(seg.Points) == 1 {
-		return xy{x: seg.Points[0].X.Val, y: seg.Points[0].Y.Val}
-	}
-
-	best, bestLength := 1, -1.0
-	for i := 1; i < len(seg.Points); i++ {
-		a, b := seg.Points[i-1], seg.Points[i]
-		length := math.Abs(b.X.Val-a.X.Val) + math.Abs(b.Y.Val-a.Y.Val)
-		if length > bestLength {
-			best, bestLength = i, length
-		}
-	}
-	a, b := seg.Points[best-1], seg.Points[best]
-	return xy{x: (a.X.Val + b.X.Val) / 2, y: (a.Y.Val + b.Y.Val) / 2}
-}

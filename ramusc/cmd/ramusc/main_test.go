@@ -335,3 +335,33 @@ func TestLayoutDoesNotTouchGivenGeometry(t *testing.T) {
 		t.Errorf("геометрия корневой работы не та, что в исходной модели:\n%s", dumped)
 	}
 }
+
+// TestArrowThroughBlockWarns — авторская стрелка сквозь блок: предупреждение,
+// а не отказ (specs/014-arrows-avoid-blocks, FR-011).
+//
+// validate и компиляция выдают один и тот же объект; код возврата 0, и файл
+// собирается — авторское решение не правится и сборку не останавливает.
+func TestArrowThroughBlockWarns(t *testing.T) {
+	source := model("arrow-through-block.yaml")
+
+	code, stdout, stderr := exec(t, "validate", source, "--json")
+	if code != exitOK {
+		t.Fatalf("validate: код %d, ожидался %d\n%s", code, exitOK, stderr)
+	}
+	if !strings.Contains(stdout, `"code": "arrow_through_block"`) ||
+		!strings.Contains(stdout, `"severity": "warning"`) {
+		t.Errorf("validate --json не сообщил о стрелке сквозь блок:\n%s", stdout)
+	}
+
+	out := filepath.Join(t.TempDir(), "out.rsf")
+	code, compiledOut, stderr := exec(t, source, "-o", out)
+	if code != exitOK {
+		t.Fatalf("компиляция: код %d, ожидался %d\n%s", code, exitOK, stderr)
+	}
+	if _, err := os.Stat(out); err != nil {
+		t.Errorf("файл не записан: %v", err)
+	}
+	if !strings.Contains(compiledOut+stderr, "arrow_through_block") {
+		t.Errorf("компиляция не повторила предупреждение validate:\n%s%s", compiledOut, stderr)
+	}
+}

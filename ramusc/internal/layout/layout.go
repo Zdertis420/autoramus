@@ -27,26 +27,63 @@ func Apply(m *ir.Model) {
 		m.Layout = &ir.Layout{Path: "/layout"}
 	}
 
-	known := make(map[string]bool, len(m.Layout.Functions))
+	known := make(map[string]*ir.FunctionLayout, len(m.Layout.Functions))
 	for _, box := range m.Layout.Functions {
-		known[box.Function.Name] = true
+		known[box.Function.Name] = box
 	}
+
+	// Сколько стрелок у каждой стороны каждого блока — до того, как блоки
+	// встали: размер блока от этого числа и зависит. Сами стрелки выводятся из
+	// связей документа без единой координаты, поэтому считать их можно раньше,
+	// чем прокладывать; прокладываются они третьим проходом, ниже.
+	needs := demand(arrows(m))
 
 	for _, diagram := range diagrams(m) {
 		ordered := sortByFlow(diagram.children, edges(m, diagram.siblings))
-		for i, place := range place(len(ordered)) {
-			name := ordered[i]
-			if known[name] {
-				// Автор задал сам — не трогаем ни значение, ни порядок записи.
+		wants := make([]need, len(ordered))
+		for i, name := range ordered {
+			wants[i] = needs[blockKey{diagram.owner, name}]
+		}
+		placed := place(wants)
+
+		// Авторские блоки — первыми: они не двигаются, и авто-блоки обязаны
+		// их обойти, а для этого надо знать, где они стоят.
+		var taken []box
+		for i, spot := range placed {
+			authored := known[ordered[i]]
+			if authored == nil {
 				continue
 			}
+			// Автор задал сам — не трогаем ни значение, ни порядок записи.
+			//
+			// Кроме размера, которого он не задавал: схема разрешает
+			// положение без ширины и высоты, и такой блок уходил в файл
+			// нулевым. Это не решение автора, а пропуск, и раскладка
+			// дописывает недостающее — то, что сказано, остаётся как есть.
+			if !authored.Width.Set {
+				authored.Width = ir.Num{Val: spot.width, Set: true, Path: authored.Path + "/width"}
+			}
+			if !authored.Height.Set {
+				authored.Height = ir.Num{Val: spot.height, Set: true, Path: authored.Path + "/height"}
+			}
+			taken = append(taken, box{x: authored.X.Val, y: authored.Y.Val,
+				width: authored.Width.Val, height: authored.Height.Val})
+		}
+
+		for i, spot := range placed {
+			name := ordered[i]
+			if known[name] != nil {
+				continue
+			}
+			spot = clear(spot, taken)
+			taken = append(taken, spot)
 			path := fmt.Sprintf("/layout/functions/%d", len(m.Layout.Functions))
 			m.Layout.Functions = append(m.Layout.Functions, &ir.FunctionLayout{
 				Function: ir.Ref{Name: name, Path: path + "/function"},
-				X:        ir.Num{Val: place.x, Set: true, Path: path + "/x"},
-				Y:        ir.Num{Val: place.y, Set: true, Path: path + "/y"},
-				Width:    ir.Num{Val: place.width, Set: true, Path: path + "/width"},
-				Height:   ir.Num{Val: place.height, Set: true, Path: path + "/height"},
+				X:        ir.Num{Val: spot.x, Set: true, Path: path + "/x"},
+				Y:        ir.Num{Val: spot.y, Set: true, Path: path + "/y"},
+				Width:    ir.Num{Val: spot.width, Set: true, Path: path + "/width"},
+				Height:   ir.Num{Val: spot.height, Set: true, Path: path + "/height"},
 				Path:     path,
 			})
 		}
@@ -103,4 +140,48 @@ func diagrams(m *ir.Model) []diagram {
 		out = append(out, diagram{owner: owner, children: names, siblings: siblings})
 	}
 	return out
+}
+
+// clear сдвигает авто-блок с занятых мест (specs/014-arrows-avoid-blocks,
+// FR-010).
+//
+// Лестница расставляется так, будто авторских блоков нет, и ступень может
+// прийтись на авторский блок: в skirt-full «Добавление фурнитуры» легло на
+// «Сшивание деталей», и стрелкам между ними пройти было негде. Налезает —
+// вправо за помеху на blockClearance; вправо не помещается на лист — вниз за
+// неё. Блоку, на который ничто не налезает, путь не нужен: он остаётся на
+// своей ступени, и документы без авторских блоков не меняются.
+//
+// Координаты только растут, поэтому сдвиги не зацикливаются; и всё же их
+// число ограничено числом помех. Не нашлось места внутри листа — блок стоит
+// на своей ступени: авторские блоки заняли всё, и это названная граница, как
+// у пересекающихся авторских блоков (FR-005).
+func clear(spot box, taken []box) box {
+	moved := spot
+	for range len(taken) + 1 {
+		hit, found := firstOverlap(moved, taken)
+		if !found {
+			if moved.x+moved.width <= sheetRight && moved.y+moved.height <= sheetBottom {
+				return moved
+			}
+			return spot
+		}
+		if right := hit.x + hit.width + blockClearance; right+moved.width <= sheetRight {
+			moved.x = right
+		} else {
+			moved.y = hit.y + hit.height + blockClearance
+		}
+	}
+	return spot
+}
+
+// firstOverlap — первая по списку помеха, на которую налезает блок. Касание
+// сторонами налезанием не считается.
+func firstOverlap(b box, taken []box) (box, bool) {
+	for _, t := range taken {
+		if b.x < t.x+t.width && t.x < b.x+b.width && b.y < t.y+t.height && t.y < b.y+b.height {
+			return t, true
+		}
+	}
+	return box{}, false
 }

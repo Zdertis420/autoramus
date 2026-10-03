@@ -64,7 +64,15 @@ func channels(all []*arrow, blocks map[string][]box, occupied []claim) {
 			continue
 		}
 		seen[a.diagram] = true
-		spread(byDiagram[a.diagram], blocks[a.diagram])
+		// Стрелки диаграммы — чтобы, выбирая сторону сдвига, видеть, кого
+		// заявка пересечёт. Порядок — порядок all, без обхода отображений.
+		var arrows []*arrow
+		for _, b := range all {
+			if b.diagram == a.diagram {
+				arrows = append(arrows, b)
+			}
+		}
+		spread(byDiagram[a.diagram], blocks[a.diagram], arrows)
 	}
 }
 
@@ -188,7 +196,7 @@ func appendRef(list []ref, r ref) []ref {
 // тот, кто может. Остальные идут в порядке документа, и первая по нему остаётся
 // на канонической линии — за счёт этого модель, где разводить нечего, не
 // сдвигается ни на йоту (FR-008).
-func spread(all []claim, blocks []box) {
+func spread(all []claim, blocks []box, arrows []*arrow) {
 	var fixed, movable []claim
 	for _, c := range all {
 		if c.pinned {
@@ -216,7 +224,7 @@ func spread(all []claim, blocks []box) {
 
 	placed := fixed
 	for _, c := range movable {
-		move(&c, pickLane(c, placed, blocks, clean))
+		move(&c, pickLane(c, placed, blocks, clean, arrows))
 		placed = append(placed, c)
 	}
 }
@@ -237,6 +245,15 @@ func crowded(blocks []box) bool {
 // pickLane выбирает линию для заявки: каноническую, если на ней свободно, иначе
 // ближайшую свободную по обе стороны от неё.
 //
+// Из двух свободных полос одного шага берётся та, где стрелка заявки меньше
+// пересекает остальные (specs/015-remove-double-crossings). Прежде бралась
+// первая по списку, «+шаг», — и у входа в «Тушение» на «чахохбили» «Томатная
+// масса» ушла на «+6» и дважды пересекла «Курицу с луком», хотя с «−6» не
+// пересекала бы её вовсе. При равенстве — по-прежнему «+шаг»: где выбирать не
+// из чего, рисунок не меняется. Шаг от канона важнее пересечений: дальняя
+// полоса без пересечений не берётся вместо ближней с одним — разведение не
+// вправе двигать рисунок шире необходимого.
+//
 // Перебор конечный и упорядоченный: шаг постоянен, стороны чередуются, за края
 // листа выходить нельзя. Это не поиск пути и не решатель ограничений — от
 // запуска к запуску результат один и тот же.
@@ -245,7 +262,7 @@ func crowded(blocks []box) bool {
 // берётся каноническая линия, и наложение остаётся. Это названная граница
 // (FR-010), а не тихая неудача, и ровно так же поступает pick() при обходе
 // блоков.
-func pickLane(c claim, placed []claim, blocks []box, clean bool) float64 {
+func pickLane(c claim, placed []claim, blocks []box, clean bool, arrows []*arrow) float64 {
 	if free(c, c.coord, placed, blocks, false, clean) {
 		return c.coord
 	}
@@ -257,13 +274,20 @@ func pickLane(c claim, placed []claim, blocks []box, clean bool) float64 {
 
 	for step := 1; step <= maxChannels; step++ {
 		shift := float64(step) * channelStep
+		best, fewest := 0.0, -1
 		for _, lane := range [2]float64{c.coord + shift, c.coord - shift} {
 			if lane < low || lane > high {
 				continue
 			}
-			if free(c, lane, placed, blocks, true, clean) {
-				return lane
+			if !free(c, lane, placed, blocks, true, clean) {
+				continue
 			}
+			if n := crossingsAt(c, lane, arrows); fewest < 0 || n < fewest {
+				best, fewest = lane, n
+			}
+		}
+		if fewest >= 0 {
+			return best
 		}
 	}
 	return c.coord
@@ -344,6 +368,61 @@ func damages(c claim, lane float64, blocks []box, clean bool) bool {
 		}
 	}
 	return false
+}
+
+// crossingsAt считает, сколько раз стрелка заявки пересечёт остальные стрелки
+// диаграммы, если заявку сдвинуть на линию. Сдвиг пробный — точки
+// возвращаются на место, как в damages.
+//
+// Своя стрелка себе не помеха: отвод, пересекающий собственную магистраль,
+// пересечением не считается. Пересечение — горизонталь строго внутри
+// вертикали; касание концами не в счёт.
+func crossingsAt(c claim, lane float64, arrows []*arrow) int {
+	was := make([]point, 0, len(c.refs))
+	for _, r := range c.refs {
+		was = append(was, r.arrow.points[r.index])
+	}
+	shift(c, lane)
+	defer func() {
+		for i, r := range c.refs {
+			r.arrow.points[r.index] = was[i]
+		}
+	}()
+
+	n := 0
+	for _, own := range arrows {
+		if own.flow != c.flow {
+			continue
+		}
+		for _, other := range arrows {
+			if other.flow == c.flow {
+				continue
+			}
+			for i := 1; i < len(own.points); i++ {
+				for j := 1; j < len(other.points); j++ {
+					if crossing(own.points[i-1], own.points[i], other.points[j-1], other.points[j]) {
+						n++
+					}
+				}
+			}
+		}
+	}
+	return n
+}
+
+// crossing сообщает, что горизонталь одного отрезка проходит строго внутри
+// вертикали другого.
+func crossing(a, b, c, d point) bool {
+	ah, ch := a.y == b.y, c.y == d.y
+	if ah == ch {
+		return false
+	}
+	if !ah {
+		a, b, c, d = c, d, a, b
+	}
+	x1, x2 := minMax(a.x, b.x)
+	y1, y2 := minMax(c.y, d.y)
+	return x1 < c.x && c.x < x2 && y1 < a.y && a.y < y2
 }
 
 // alongSide сообщает, что отрезок лёг вдоль стороны блока.

@@ -141,7 +141,11 @@ func checkSegment(t *testing.T, flow string, s *ir.Segment, blocks []*ir.Functio
 }
 
 // blocksOverlap сообщает, что блоки диаграммы налезают друг на друга. Такое
-// бывает только от ручной геометрии: своя раскладка разносит их по диагонали.
+// бывает только от ручной геометрии: своя раскладка разносит их по диагонали и
+// обходит авторские блоки (clear). Остаётся один случай — автор сам положил
+// свои блоки внахлёст; тогда обойти их нечем, и проверка пересечений на такой
+// диаграмме отключается — названная граница FR-005 фичи 014. На наборе такой
+// диаграммы нет.
 func blocksOverlap(blocks []*ir.FunctionLayout) bool {
 	for i, a := range blocks {
 		for _, b := range blocks[i+1:] {
@@ -263,4 +267,103 @@ func format(s *ir.Segment) string {
 		out += fmt.Sprintf("(%g, %g)", p.X.Val, p.Y.Val)
 	}
 	return out
+}
+
+// TestControlRouteClimbsOver — связь «выход → управление» не идёт сквозь
+// приёмник, когда тот поднялся выше точки выхода (research Р-6).
+//
+// Прежний шаблон — вправо до вертикали порта и вниз — считал, что лестница
+// ставит приёмник ниже источника. Выросший блок может встать выше: сумма
+// высот съедает вертикальный размах, и соседи перекрываются по высоте. Тогда
+// горизонталь шла бы сквозь приёмник, и стрелка обходит его сверху.
+func TestControlRouteClimbsOver(t *testing.T) {
+	control := func(m *ir.Model) {
+		m.Flows = append(m.Flows, ir.Ref{Name: "указание"})
+		m.Links = append(m.Links,
+			produces("источник", "указание"),
+			&ir.Link{Flow: ir.Ref{Name: "указание"}, To: ir.Ref{Name: "приёмник"},
+				Side: ir.SideControl, Sugar: true},
+		)
+	}
+	segment := func(t *testing.T, m *ir.Model) *ir.Segment {
+		t.Helper()
+		for _, a := range m.Layout.Arrows {
+			if a.Flow.Name == "указание" && len(a.Segments) == 1 {
+				return a.Segments[0]
+			}
+		}
+		t.Fatal("стрелка «указание» не нарисована одним сегментом")
+		return nil
+	}
+
+	t.Run("приёмник выше выхода", func(t *testing.T) {
+		m := model("корень", "источник", "приёмник")
+		control(m)
+		crowd(m, "приёмник", ir.SideIn, 19)
+		layout.Apply(m)
+
+		s := segment(t, m)
+		source, target := boxes(m)["источник"], boxes(m)["приёмник"]
+		if exit := s.Points[0].Y.Val; exit <= target.Y.Val {
+			t.Fatalf("выход на y=%v уже выше приёмника (верх %v) — случай не тот, что проверяется",
+				exit, target.Y.Val)
+		}
+		checkSegment(t, "указание", s, []*ir.FunctionLayout{source, target}, true)
+
+		n := len(s.Points)
+		last, before := s.Points[n-1], s.Points[n-2]
+		if !near(last.Y.Val, target.Y.Val) || before.Y.Val >= last.Y.Val {
+			t.Errorf("стрелка приходит в управление не сверху: %s", format(s))
+		}
+	})
+
+	t.Run("приёмник ниже выхода", func(t *testing.T) {
+		m := model("корень", "источник", "приёмник")
+		control(m)
+		layout.Apply(m)
+		if s := segment(t, m); len(s.Points) != 3 {
+			t.Errorf("без перекрытия маршрут прежний, из трёх точек, а вышло %s", format(s))
+		}
+	})
+}
+
+// TestDetourIsNearest — обход берёт ближайшую чистую полосу, а не коридор
+// (specs/014-arrows-avoid-blocks, US2).
+//
+// «Курица с луком» идёт от «Обжарки лука» к «Тушению» через одну ступень
+// лестницы. Середина промежутка — центр пропущенной «Подготовки томатной
+// массы». Чистая полоса есть в соседнем промежутке, между «Подготовкой» и
+// «Тушением»: горизонталь выхода проходит над «Подготовкой». Маршрут тот же по
+// форме — четыре точки, изломов не прибавилось, — сдвинута только вертикаль.
+func TestDetourIsNearest(t *testing.T) {
+	m := modelOf(t, example("chakhokhbili.yaml"))
+	layout.Apply(m)
+
+	const diagram = "Приготовление чахохбили"
+	var seg *ir.Segment
+	for _, a := range m.Layout.Arrows {
+		if a.Flow.Name != "Курица с луком" {
+			continue
+		}
+		for _, s := range a.Segments {
+			if !s.Context && s.On.Name == diagram {
+				seg = s
+			}
+		}
+	}
+	if seg == nil {
+		t.Fatal("сегмент «Курицы с луком» на A0 не найден")
+	}
+
+	if len(seg.Points) != 4 {
+		t.Errorf("точек %d, ожидалось 4 — как у прежнего шаблона: %s", len(seg.Points), format(seg))
+	}
+	placed := boxes(m)
+	tomato, stew := placed["Подготовка томатной массы"], placed["Тушение"]
+	lane := seg.Points[1].X.Val
+	if lane <= tomato.X.Val+tomato.Width.Val || lane >= stew.X.Val {
+		t.Errorf("вертикаль x=%v не в промежутке между «Подготовкой томатной массы» (правый край %v) и «Тушением» (левый край %v)",
+			lane, tomato.X.Val+tomato.Width.Val, stew.X.Val)
+	}
+	checkSegment(t, "Курица с луком", seg, blocksByDiagram(m)[diagram], true)
 }

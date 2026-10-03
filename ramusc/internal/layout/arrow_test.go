@@ -30,13 +30,11 @@ func document(name string) string {
 // было ни в одном документе набора, и пропажу граничного сегмента не ловил
 // никто.
 //
-// `examples/chakhokhbili.yaml` в этот перечень не входит, хотя наложений в нём
-// больше, чем во всех пробах вместе. Причина названа и временна: в нём есть
-// **другой** дефект — связь, перешагивающая один блок лестницы, идёт сквозь
-// него, — и `TestGeometryIsLawful` на нём краснеет. Дефект к наложениям
-// отношения не имеет и чинится не здесь, поэтому модель подключена к проверке
-// наложений отдельным перечнем (`overlapDocuments` в channel_test.go), а в
-// общий вернётся, когда прямые связи научатся обходить блоки.
+// `examples/chakhokhbili.yaml` — наложений в нём больше, чем во всех пробах
+// вместе. Прежде он проверялся отдельным перечнем: связь, перешагивающая один
+// блок лестницы, шла сквозь него, и `TestGeometryIsLawful` на нём краснел.
+// Прямые связи научились обходить блоки (specs/014-arrows-avoid-blocks), и
+// модель вернулась в общий перечень.
 func documents() []string {
 	return []string{
 		example("skirt.yaml"),
@@ -50,6 +48,7 @@ func documents() []string {
 		document("channels-feedback.yaml"),
 		document("channels-trunk.yaml"),
 		document("branch-border.yaml"),
+		example("chakhokhbili.yaml"),
 	}
 }
 

@@ -239,3 +239,104 @@ func TestAuthoredFlowFullyDrawn(t *testing.T) {
 		t.Errorf("креплений %d, ожидалось %d: %v", len(attached), len(want), attached)
 	}
 }
+
+// TestPartialOverrideFillsSize — что автор не задал, раскладка дописывает
+// (research Р-8).
+//
+// Схема разрешает положение без размера. Прежде такой блок пропускался
+// целиком, как авторский, и уходил в файл шириной и высотой 0 — не решение
+// автора, а дефект. Заданное же автором не трогается, даже если стрелкам на
+// нём тесно.
+func TestPartialOverrideFillsSize(t *testing.T) {
+	m := model("корень", "первая", "вторая", "третья")
+	crowd(m, "первая", ir.SideIn, 3)
+	crowd(m, "вторая", ir.SideIn, 3)
+	if m.Layout == nil {
+		m.Layout = &ir.Layout{Path: "/layout"}
+	}
+	m.Layout.Functions = append(m.Layout.Functions, &ir.FunctionLayout{
+		Function: ir.Ref{Name: "первая"},
+		X:        ir.Num{Val: 100, Set: true},
+		Y:        ir.Num{Val: 120, Set: true},
+	})
+	pin(m, "вторая", 400, 300, 40, 40)
+	layout.Apply(m)
+	got := boxes(m)
+
+	first := got["первая"]
+	if first.X.Val != 100 || first.Y.Val != 120 {
+		t.Errorf("положение, заданное автором, сдвинулось: (%v, %v)", first.X.Val, first.Y.Val)
+	}
+	if first.Width.Val != 72 || first.Height.Val != 60 {
+		t.Errorf("недостающий размер %v × %v, ожидался 72 × 60 — по трём входам",
+			first.Width.Val, first.Height.Val)
+	}
+
+	second := got["вторая"]
+	if second.Width.Val != 40 || second.Height.Val != 40 {
+		t.Errorf("размер, заданный автором, изменился: %v × %v", second.Width.Val, second.Height.Val)
+	}
+}
+
+// TestAutoBlocksAvoidAuthored — блок, который ставит раскладка, не ложится на
+// блок, поставленный автором (specs/014-arrows-avoid-blocks, FR-010).
+//
+// Прежде лестница расставлялась так, будто авторских блоков нет, и в
+// skirt-full «Добавление фурнитуры» легло на «Сшивание деталей»: стрелкам
+// между ними пройти было негде. Авторский блок не двигается; авто-блок, на
+// который ничто не налезает, остаётся на своей ступени.
+func TestAutoBlocksAvoidAuthored(t *testing.T) {
+	check := func(t *testing.T, m *ir.Model) {
+		t.Helper()
+		pinned := make(map[string]ir.FunctionLayout)
+		for _, f := range m.Layout.Functions {
+			pinned[f.Function.Name] = *f
+		}
+		layout.Apply(m)
+		for owner, blocks := range blocksByDiagram(m) {
+			for _, a := range blocks {
+				if _, authored := pinned[a.Function.Name]; authored {
+					continue
+				}
+				for _, b := range blocks {
+					if _, authored := pinned[b.Function.Name]; !authored {
+						continue
+					}
+					if a.X.Val < b.X.Val+b.Width.Val && b.X.Val < a.X.Val+a.Width.Val &&
+						a.Y.Val < b.Y.Val+b.Height.Val && b.Y.Val < a.Y.Val+a.Height.Val {
+						t.Errorf("диаграмма «%s»: «%s» лежит на авторском «%s»",
+							owner, a.Function.Name, b.Function.Name)
+					}
+				}
+			}
+		}
+		for name, was := range pinned {
+			now := boxes(m)[name]
+			if now.X.Val != was.X.Val || now.Y.Val != was.Y.Val {
+				t.Errorf("авторский «%s» сдвинулся: (%v, %v) → (%v, %v)",
+					name, was.X.Val, was.Y.Val, now.X.Val, now.Y.Val)
+			}
+		}
+	}
+
+	t.Run("skirt-full.yaml", func(t *testing.T) {
+		check(t, modelOf(t, example("skirt-full.yaml")))
+	})
+
+	t.Run("авторский блок на чужой ступени", func(t *testing.T) {
+		free := model("корень", "первая", "вторая", "третья")
+		layout.Apply(free)
+		want := boxes(free)
+
+		// «Первая» поставлена автором туда, где лестница ставит «вторую».
+		m := model("корень", "первая", "вторая", "третья")
+		pin(m, "первая", want["вторая"].X.Val, want["вторая"].Y.Val, 72, 50.4)
+		check(t, m)
+
+		// «Третья» не задета — стоит на своей ступени.
+		if got := boxes(m)["третья"]; got.X.Val != want["третья"].X.Val || got.Y.Val != want["третья"].Y.Val {
+			t.Errorf("«третья» сдвинулась, хотя ей ничто не мешало: (%v, %v) вместо (%v, %v)",
+				got.X.Val, got.Y.Val, want["третья"].X.Val, want["третья"].Y.Val)
+		}
+	})
+}

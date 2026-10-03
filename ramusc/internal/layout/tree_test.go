@@ -248,7 +248,7 @@ func TestTurnsAreInsidePolylines(t *testing.T) {
 // Стрелка без ветвления — та, у которой нет ни одного конца-узла: её сегменты
 // друг с другом не стыкуются, и стыковому повороту взяться неоткуда.
 func TestSimpleArrowsKeepTurnsInside(t *testing.T) {
-	for _, path := range overlapDocuments() {
+	for _, path := range documents() {
 		t.Run(filepath.Base(path), func(t *testing.T) {
 			m := modelOf(t, path)
 			written := authored(m)
